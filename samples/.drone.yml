@@ -1,0 +1,36 @@
+kind: pipeline
+name: default
+
+clone:
+  disable: true
+
+steps:
+- name: clone
+  image: docker:git
+  environment:
+    REPO: test
+    GIN_USER: "wahal"
+    GIN_SERVER: "172.19.0.2"
+    SSH_KEY:
+      from_secret: DRONE_PRIVATE_SSH_KEY  
+  commands:
+    - echo "[+] Starting SSH Agent."
+    - eval $(ssh-agent -s)
+    - echo "[+] Installing SSH Keys."
+    - mkdir /root/.ssh && echo "$SSH_KEY" > /root/.ssh/id_rsa && chmod 0600 /root/.ssh/id_rsa
+    - echo "StrictHostKeyChecking no" >> /etc/ssh/ssh_config
+    - ssh-keyscan -H "$GIN_SERVER" >> /root/.ssh/known_hosts
+    - ssh-add /root/.ssh/id_rsa
+#    - ssh -Tv git@172.19.0.2 -p 22 -i /root/.ssh/id_rsa
+    - echo "[+] Cloning Repository."
+    - git clone git@"$GIN_SERVER":/"$GIN_USER"/"$REPO".git
+
+- name: proc
+  image: ubuntu
+  environment:
+    REPO: test
+  commands:
+    - apt-get update
+    - apt-get install python -y
+    - which python
+
