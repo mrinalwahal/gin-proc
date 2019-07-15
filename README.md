@@ -132,23 +132,7 @@ Now go to your terminal and copy your `gin_id_rsa.pub` key and install it in gin
 **[5]** Create **drone** CI/CD service container.
 
 ```
- docker run  \
- --volume=/var/run/docker.sock:/var/run/docker.sock \
- --env=DRONE_GIT_ALWAYS_AUTH=false \
- --env=DRONE_GOGS_SERVER=http://172.19.0.2:3000  \        # Replace the IP with your own.
- --env=DRONE_RUNNER_CAPACITY=2 \
- --env=DRONE_RUNNER_NETWORKS=gin \
- --env=DRONE_SERVER_HOST=172.19.0.3 \                     # We are again assigning a static IP for the drone container to keep things easy.
- --env=DRONE_SERVER_PROTO=http \
- --env=DRONE_TLS_AUTOCERT=false \
- --publish=80:80 \
- --publish=443:443 \
- --publish=2224:22 \
- --restart=always \
- --detach=true \
- --net gin \                                              # Replace network name with your own docker network.
- --name=drone \
- drone/drone:latest
+docker run --volume=/var/run/docker.sock:/var/run/docker.sock --volume=/tmp/cache:/cache --env=DRONE_GIT_ALWAYS_AUTH=false --env=DRONE_GOGS_SERVER=http://<GOGS_SERVER>:3000  --env=DRONE_RUNNER_CAPACITY=2 --env=DRONE_RUNNER_NETWORKS=gin --env=DRONE_SERVER_HOST=172.19.0.3  --env=DRONE_SERVER_PROTO=http --env=DRONE_TLS_AUTOCERT=false --env=DRONE_USER_CREATE=username:<GOGS_USERNAME>,admin:true --publish=80:80 --publish=443:443 --publish=2224:22 --restart=always --detach=true --net gin --name=drone-cache drone/drone:latest
  ```
 Access drone at `172.19.0.3:80` in your browser. You will get a list of your repositories. Click on **ACTIVATE** for which your want to enable **gin-proc** microservice.
 

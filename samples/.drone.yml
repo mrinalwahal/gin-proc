@@ -5,15 +5,23 @@ clone:
   disable: true
 
 steps:
+- name: restore-cache
+  image: drillster/drone-volume-cache
+  volumes:
+  - name: cache
+    path: /cache
+  settings:
+    restore: true
+    mount:
+      # Workspace volume you want to cache
+      - ./.snakemake
+
 - name: prepare
   image: falconshock/gin-proc
   environment:
     SSH_KEY:
       from_secret: DRONE_PRIVATE_SSH_KEY  
   commands:
-    #- echo "[+] Preparing Environment"
-    #- apt-get update && apt-get install git-annex python3.6 python3-pip -y
-
     # "[+] Starting SSH Agent"
     - eval $(ssh-agent -s)
     
@@ -28,27 +36,49 @@ steps:
     - git clone "$DRONE_GIT_SSH_URL"
     - cd "$DRONE_REPO_NAME"/
 
-    - pip3 install -r requirements.txt
+    - [ -f requirements.txt ] && echo "Detected requirements file." && pip3 install -r requirements.txt || echo "No requirements file detected."
 
     - git annex init ""$DRONE_REPO_NAME"-drone-annexe"
     - git annex sync --content
     # "Annex syncing complete."
 
-    # --------------------------
-    # Your code.
-    # --------------------------
+    - python3 main.py test-annex.txt
+    # "Succesfully ran Annexed files."
+
+    # "Executing Snakemake workflow."
+    - snakemake
 
     - mkdir "$DRONE_BUILD_NUMBER"
-    - git diff-tree -r --no-commit-id --name-only origin/master . | xargs -I '{}' cp '{}' "$DRONE_BUILD_NUMBER"/
+    #- git status | grep modified | awk '{print $2}'
+    #- git diff-tree -r --no-commit-id --name-only origin/master . | xargs -I '{}' cp '{}' "$DRONE_BUILD_NUMBER"/
 
     # "[+] Back-Pushing output."
     - git checkout gin-proc || git checkout -b gin-proc
-    - git add "$DRONE_BUILD_NUMBER"/ && git commit "$DRONE_BUILD_NUMBER"/ -m "$DRONE_COMMIT_MESSAGE" && git push origin gin-proc
+    - echo ".snakemake/" > .gitignore
+    - cd "$DRONE_BUILD_NUMBER"/
+    - git status | grep modified | awk '{print $2}' | xargs git add && git status && git commit -am "Build '#'$DRONE_COMMIT_MESSAGE Complete" && git annex sync --content
 
-- name: slack
-  image: plugins/slack
+- name: rebuild-cache
+  image: drillster/drone-volume-cache
+  volumes:
+  - name: cache
+    path: /cache
   settings:
-    webhook: https://hooks.slack.com/services/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
+    rebuild: true
+    mount:
+      # Workspace volume you want to retrieve cache from
+      - ./.snakemake
+
+volumes:
+  - name: cache
+    host: 
+      # Mounted cache directory from your host machine
+      path: /tmp/cache
+
+#- name: slack
+#  image: plugins/slack
+#  settings:
+#    webhook: https://hooks.slack.com/services/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
 
 trigger:
   branch:
