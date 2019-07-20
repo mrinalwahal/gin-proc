@@ -1,0 +1,16 @@
+<html>
+    <head></head>
+    <body>
+        <form method="post" action="{{ url_for('hook') }}">
+            GIN path: (172.19.0.2:3000)<br>
+            <input type="text" name="path" value="172.19.0.2:3000"><br>
+            repo:<br>
+            <input type="text" name="repo" value="test"><br>
+            file for workflow:<br>
+            <input type="text" name="workflowFile" value="Sample1"><br><br>
+            file to save:<br>
+            <input type="text" name="backPushFile" value="Sample1.txt"><br><br>
+            <input type="submit" value="Submit">
+          </form>
+    </body>
+</html>
