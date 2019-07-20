@@ -1,16 +1,6 @@
 import requests
 import os
 
-def getToken():
-	with open(".env", "r+") as env:
-		for line in env.readlines():
-			words = line.split("=")
-			if words[0] == "token": token = words[1]
-
-	env.close()
-	print('Prepared for operation')
-	return token
-
 def designWorkflow(filename, repoPath):
 	lines = []
 	with open('Snakefile.template', 'r+') as template:
@@ -70,14 +60,12 @@ def push(repoPath):
 	os.system('cd ' + repoPath + ' && git add . && git commit -m "Updated workflow" && git push origin master')
 	print("Updates pushed")
 
-def configure(path, repoName, workflowFile, backPushFile):
+def configure(path, repoName, workflowFile, backPushFile, token, user):
 	API = "http://" + path + "/api/v1"
-
-	token = getToken()
 	repo = getRepo(repoName, API, token)
 	clone_path = clone(repo)
 	designWorkflow(workflowFile, clone_path)
 	designBackPush(backPushFile, clone_path)
 	push(clone_path)
-	#clean(clone_path)
+	clean(clone_path)
 	print('\n[-] Ability to push the new CI config is yet to be added.')
