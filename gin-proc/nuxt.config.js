@@ -1,6 +1,11 @@
 export default {
   mode: 'universal',
   /*
+  router: {
+    middleware: ['auth']
+  },
+  */
+  /*
    ** Headers of the page
    */
   head: {
@@ -19,7 +24,7 @@ export default {
   /*
    ** Customize the progress-bar color
    */
-  loading: { color: '#000' },
+  loading: { color: 'green' },
   /*
    ** Global CSS
    */
@@ -44,6 +49,22 @@ export default {
    ** See https://axios.nuxtjs.org/options
    */
   axios: {},
+  env: {
+    HOST_URL: process.env.HOST_URL || 'http://127.0.0.1:5000'
+  },
+  auth: {
+    strategies: {
+      local: {
+        endpoints: {
+          login: { url: '/login', method: 'post', propertyName: 'token' },
+          // logout: { url: '/api/auth/logout', method: 'post' },
+          user: { url: '/user', method: 'get', propertyName: false }
+        }
+        // tokenRequired: true,
+        // tokenType: 'bearer'
+      }
+    }
+  },
   /*
    ** Build configuration
    */

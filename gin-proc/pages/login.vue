@@ -43,7 +43,6 @@
             data: this.loginData
           }).then((response) => {
             if (response.status == 200) {this.$router.push({path: '/'})}
-            else if (response.status == 400) {this.valid = false}
             else this.valid = false
           })
           .catch(this.valid = false)

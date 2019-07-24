@@ -1,11 +1,11 @@
-from flask import Flask, request, abort, render_template
+from flask import Flask, request, abort, render_template, jsonify, make_response
 from flask_cors import CORS, cross_origin
 app = Flask(__name__)
 cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 import os
-from service import configure, authorize, ensureToken, ensureKeys, validUser, getRepos
+from service import configure, authorize, ensureToken, ensureKeys, validUser, getRepos, user
 
 auth = None
 token = None
@@ -17,30 +17,50 @@ def index(): return render_template('index.html')
 @cross_origin()
 def login():
     if request.method == "POST":
+        global auth
         auth = authorize(username = request.json['username'], password = request.json['password'])
         if not validUser(auth): abort(400)
         print("User {} logged in".format(request.json['username']))
+        global token
         token = ensureToken(auth = auth)
         print('token ensured: {}'.format(token.name))
         print('key ensured: {}'.format(ensureKeys(token)))
-        return ("logged in", 200)
+        return ({'token': token.token}, 200)
     else:
         abort(400)
 
-@app.route('/hook', methods=['POST', 'GET'])
-def hook():
-    if request.method == 'POST':
-        repo = request.form['repo']
-        workflowFile = request.form['workflowFile']
-        backPushFile = request.form['backPushFile']
-        configure(repoName = repo, workflowFile = workflowFile, backPushFile = backPushFile, token = token, auth = auth)
-        return render_template('hook.html', repo = repo, workflowFile = workflowFile, backPushfile = backPushFile, status = "Done")
-    else:
-        abort(400)    
+"""@app.route('/user', methods=['GET'])
+def user():
+    if request.method == "GET":
+        print (user(auth, auth.username))
+"""
+"""@app.route('/token', methods=['GET'])
+def token():
+    if request.method == "GET": 
+        global token
+        return (token.token)
+"""
+@app.route('/execute', methods=['POST'])
+def execute():
+        try:
+                if request.method == "POST":
+                        global auth
+                        global token
+                        configure(
+                        repoName = request.json['repo'], 
+                        workflowFile = request.json['workflowFile'], 
+                        backPushFile = request.json['backpushFile'], 
+                        token = token, 
+                        auth = auth
+                        )
+                        return ("Success: workflow pushed to {}".format(request.json['repo']), 200)
+                else: return ("Wrong Method", 501)
+        except: return ("Aborted", 500)
 
 @app.route('/repos', methods=['GET'])
 def repos():
-    if request.method == "GET": print(getRepos(auth, auth.username))
+    if request.method == "GET":
+        return jsonify([repo.name for repo in getRepos(auth, auth.username)])
 
 if __name__ == '__main__':
     app.run(debug=True, port=8000, host="127.0.0.1")

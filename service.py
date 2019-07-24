@@ -9,6 +9,9 @@ from cryptography.hazmat.backends import default_backend as crypto_default_backe
 path = "http://172.19.0.2:3000"
 api = gogs_client.GogsApi(path)
 
+def user(auth, username):
+	return api.get_user(auth, username)
+
 def authorize(username, password):
     return gogs_client.UsernamePassword(username, password)
 
@@ -89,10 +92,10 @@ def getRepoData(auth, user, repo):
 
 	print('Repo {} fetched'.format(repo))
 
-def clone(repo):
-	clone_path = "clones/wahal-" + repo['name']
+def clone(repo, author):
+	clone_path = "clones/{}-{}".format(author, repo.name)
 	if not os.path.exists(clone_path): os.makedirs(clone_path)
-	os.system("git clone --depth=1 " + repo['clone_url'] + " " + clone_path)
+	os.system("git clone --depth=1 " + repo.urls.clone_url + " " + clone_path)
 
 	print("Repo cloned at " + clone_path)
 	return clone_path
@@ -107,7 +110,7 @@ def push(repoPath):
 
 def configure(repoName, workflowFile, backPushFile, token, auth):
 	repo = getRepoData(auth, auth.username, repoName)
-	clone_path = clone(repo)
+	clone_path = clone(repo, auth.username)
 	designWorkflow(workflowFile, clone_path)
 	designBackPush(backPushFile, clone_path)
 	push(clone_path)
