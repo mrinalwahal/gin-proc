@@ -6,7 +6,7 @@ from cryptography.hazmat.primitives import serialization as crypto_serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend as crypto_default_backend
 
-path = "http://172.19.0.2:3000"
+path = "http://172.17.0.2:3000"
 api = gogs_client.GogsApi(path)
 
 def user(auth, username):
@@ -22,7 +22,7 @@ def ensureKeys(token):
 	response = requests.get(path + "/api/v1/user/keys", headers = {'Authorization': 'token ' + str(token.token)})
 	for keys in response.json():
 		if keys['title'] == 'gin_id_rsa': return 'gin_id_rsa'
-	
+
 	key = rsa.generate_private_key(
     backend=crypto_default_backend(),
     public_exponent=65537,
@@ -37,14 +37,16 @@ def ensureKeys(token):
     crypto_serialization.PublicFormat.OpenSSH
 	)
 
-	os.chmod('/.ssh/gin_id_rsa', 0o777)
-	os.chmod('/.ssh/gin_id_rsa.pub', 0o777)
-	with open('/.ssh/gin_id_rsa', 'w+') as private_key_file: 
+	os.makedirs("ssh", exist_ok=True)
+	with open('ssh/gin_id_rsa', 'w+') as private_key_file:
 		private_key_file.write(private_key.decode('utf-8'))
-	with open('/.ssh/gin_id_rsa.pub', 'w+') as public_key_file: 
+	with open('ssh/gin_id_rsa.pub', 'w+') as public_key_file:
 		public_key_file.write(public_key.decode('utf-8'))
-	
-	response = requests.post(path + "/api/v1/user/keys", 
+	os.chmod('ssh', 0o700)
+	os.chmod('ssh/gin_id_rsa', 0o600)
+	os.chmod('ssh/gin_id_rsa.pub', 0o600)
+
+	response = requests.post(path + "/api/v1/user/keys",
 	headers = {'Authorization': 'token ' + str(token.token)},
 	data = {'title': 'gin_id_rsa', 'key': public_key}
 	)
@@ -93,8 +95,9 @@ def getRepoData(auth, user, repo):
 	print('Repo {} fetched'.format(repo))
 
 def clone(repo, author):
-	clone_path = "clones/{}-{}".format(author, repo.name)
+	clone_path = "/tmp/clones/{}-{}".format(author, repo.name)
 	if not os.path.exists(clone_path): os.makedirs(clone_path)
+	print("git clone --depth=1 " + repo.urls.clone_url + " " + clone_path)
 	os.system("git clone --depth=1 " + repo.urls.clone_url + " " + clone_path)
 
 	print("Repo cloned at " + clone_path)
