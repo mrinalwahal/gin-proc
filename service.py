@@ -1,12 +1,22 @@
+#-------------------------------#
+# Env variables assigned 
+# GIN_SERVER=172.19.0.2:3000
+# GIT_SSH_COMMAND=ssh -i gin-proc/ssh/gin_id_rsa
+#-------------------------------#
+
+
 import requests
 import os
 import gogs_client
+import tempfile
 
 from cryptography.hazmat.primitives import serialization as crypto_serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend as crypto_default_backend
 
-path = "http://172.19.0.2:3000"
+#print(os.environ['GIT_SSH_COMMAND'])
+#print(os.environ['GIN_SERVER'])
+path = "http://" + os.environ['GIN_SERVER']
 api = gogs_client.GogsApi(path)
 
 def user(auth, username):
@@ -37,12 +47,14 @@ def ensureKeys(token):
     crypto_serialization.PublicFormat.OpenSSH
 	)
 
-	os.chmod('/.ssh/gin_id_rsa', 0o777)
-	os.chmod('/.ssh/gin_id_rsa.pub', 0o777)
-	with open('/.ssh/gin_id_rsa', 'w+') as private_key_file: 
+	os.makedirs("~/gin-proc/ssh", exist_ok=True)
+	with open('~/gin-proc/ssh/gin_id_rsa', 'w+') as private_key_file: 
 		private_key_file.write(private_key.decode('utf-8'))
-	with open('/.ssh/gin_id_rsa.pub', 'w+') as public_key_file: 
+	with open('~/gin-proc/ssh/gin_id_rsa.pub', 'w+') as public_key_file: 
 		public_key_file.write(public_key.decode('utf-8'))
+	os.chmod('~/gin-proc/ssh', 0o700)
+	os.chmod('~/gin-proc/ssh/gin_id_rsa', 0o600)
+	os.chmod('~/gin-proc/ssh/gin_id_rsa.pub', 0o600)
 	
 	response = requests.post(path + "/api/v1/user/keys", 
 	headers = {'Authorization': 'token ' + str(token.token)},
@@ -54,30 +66,31 @@ def ensureKeys(token):
 def validUser(auth):
 	return api.valid_authentication(auth)
 
-def designWorkflow(filename, repoPath):
+def designWorkflow(files, repoPath):
 	lines = []
 	with open('Snakefile.template', 'r+') as template:
 		for line in template.readlines():
 			if not '#Add-Files' in line: lines.append(line)
-			else:lines.append("SAMPLES = ['%s']" % filename)
+			else: lines.append("SAMPLES = {}".format(files.values()))
 
 	template.close()
-	print("Files added to workflow: " + filename)
+	print("Files added to workflow: " + files.values())
 
 	with open(repoPath + '/Snakefile', 'w+') as config: config.writelines(lines)
 	config.close()
 
 	print("Workflow written at " + repoPath + "/Snakefile")
 
-def designBackPush(filename, repoPath):
+def designBackPush(files, repoPath):
 	lines = []
 	with open('drone.template', 'r+') as template:
 		for line in template.readlines():
 			if not '# Break-Point' in line: lines.append(line)
-			else :lines.append("    - git checkout master %s" % filename)
+			else:
+				for filename in files.values(): lines.append("    - git checkout master --files {}".format(filename))
 
 	template.close()
-	print("Files added for back-push: " + filename)
+	print("Files added for back-push: " + files.values())
 
 	with open(repoPath + '/.drone.yml', 'w+') as config: config.writelines(lines)
 	config.close()
@@ -92,9 +105,9 @@ def getRepoData(auth, user, repo):
 
 	print('Repo {} fetched'.format(repo))
 
-def clone(repo, author):
-	clone_path = "clones/{}-{}".format(author, repo.name)
-	if not os.path.exists(clone_path): os.makedirs(clone_path)
+def clone(repo, author, path):
+	clone_path = path + "/{}-{}".format(author, repo.name)
+	os.makedirs(clone_path, exist_ok=True)
 	os.system("git clone --depth=1 " + repo.urls.clone_url + " " + clone_path)
 
 	print("Repo cloned at " + clone_path)
@@ -102,17 +115,18 @@ def clone(repo, author):
 
 def clean(path):
 	os.system("rm -rf " + path)
-	print("Repo cleaned")
+	print("Repo cleaned from {}".format(path))
 
-def push(repoPath):
-	os.system('cd ' + repoPath + ' && git add . && git commit -m "Updated workflow" && git push origin master')
-	print("Updates pushed")
+def push(path):
+	os.system('cd ' + path + ' && git add . && git commit -m "Updated workflow" && git push origin master')
+	print("Updates pushed from {}".format(path))
 
-def configure(repoName, workflowFile, backPushFile, token, auth):
+def configure(repoName, commitMessage, workflowFiles, backPushFiles, token, auth):
 	repo = getRepoData(auth, auth.username, repoName)
-	clone_path = clone(repo, auth.username)
-	designWorkflow(workflowFile, clone_path)
-	designBackPush(backPushFile, clone_path)
-	push(clone_path)
-	clean(clone_path)
-	print('\n[-] Ability to push the new CI config is yet to be added.')
+
+	with tempfile.TemporaryDirectory() as temp_clone_path:
+		clone_path = clone(repo, auth.username, temp_clone_path)
+		designWorkflow(workflowFiles, clone_path)
+		designBackPush(backPushFiles, clone_path)
+		push(clone_path)
+		clean(clone_path)

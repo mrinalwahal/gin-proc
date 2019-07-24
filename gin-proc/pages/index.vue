@@ -10,18 +10,18 @@
   </b-list-group-item>
 
   <b-list-group-item class="d-flex justify-content-between align-items-center">
-    Running Jobs
+    Workflow Inputs: {{workflowFiles}}
     <b-badge variant="primary" pill>2</b-badge>
   </b-list-group-item>
 
   <b-list-group-item active class="d-flex justify-content-between align-items-center">
-    Morbi leo risus
+    Backpushing: {{backpushFiles}}
   </b-list-group-item>
 </b-list-group>
     </b-col>
     <b-col>
     <div>
-      <b-alert v-show="repos.length == 0" show variant="danger">Log back in</b-alert>
+      <b-alert v-show="repos.length == 0" show variant="danger">No repos found</b-alert>
       <b-form @submit="onSubmit" @reset="onReset" @submit.stop.prevent>
       <b-form-group
         id="input-group-1"
@@ -31,20 +31,28 @@
       >
         <b-form-input
           id="input-1"
-          v-model="form.workflowFile"
+          v-for="x in workflowCounter" :key="x"
+          v-model="workflowFiles[x]"
           type="text"
           required
           placeholder="Enter your workflow file"
         ></b-form-input>
+    <b-input-group-append>
+      <b-button variant="info" v-on:click="addWorkflowFile">Add File</b-button>
+    </b-input-group-append>
       </b-form-group>
 
       <b-form-group id="input-group-2" label="Backpush File:" label-for="input-2">
         <b-form-input
           id="input-2"
-          v-model="form.backpushFile"
+          v-for="x in backpushCounter" :key="x"
+          v-model="backpushFiles[x]"
           required
           placeholder="Enter your backpush file"
         ></b-form-input>
+    <b-input-group-append>
+      <b-button variant="info" v-on:click="addBackpushFile">Add File</b-button>
+    </b-input-group-append>
       </b-form-group>
 
       <b-form-group id="input-group-3" label="Repository:" label-for="input-3">
@@ -57,16 +65,10 @@
       </b-form-group>
 
       
-        <!--
           <b-input-group>
-    <b-input-group-text slot="prepend">Repository</b-input-group-text>
-    <b-form-input v-model="form.repo" />
-
-    <b-dropdown text="Choose" variant="success" slot="append">
-      <b-dropdown-item v-for="repo in repos" :key="repo">{{repo}}</b-dropdown-item>
-    </b-dropdown>
+    <b-input-group-text slot="prepend">Commit Message</b-input-group-text>
+    <b-form-input v-model="form.commitMessage" />
   </b-input-group>
-    -->
       <b-form-group id="input-group-4" label="Notifications:" label-for="input-4">
         <b-form-checkbox-group v-model="form.notifications" id="checkboxes-4">
           <b-form-checkbox value="slack">Slack Notifs</b-form-checkbox>
@@ -114,11 +116,14 @@ export default {
   data() {
     return {
       form: {
-        workflowFile: null,
-        backpushFile: null,
         repo: null,
         notifications: [],
+        commitMessage: null,
       },
+      backpushFiles: {},
+      workflowFiles: {},
+      workflowCounter: 1,
+      backpushCounter: 1,
       execution_status: "Waiting for your workflow",
       action: {
         text: 'Submit',
@@ -129,12 +134,19 @@ export default {
     }
   },
   methods: {
+    addWorkflowFile() {
+      this.workflowCounter += 1
+    },
+    addBackpushFile() {
+      this.backpushCounter += 1
+    },
     onReset() {
       this.form = {
-      workflowFile: null,
-        backpushFile: null,
+      workflowFiles: null,
+        backpushFiles: null,
         repo: null,
         notifications: [],
+        commitMessage: null,
       },
       this.action = {
         text: 'Submit',
@@ -148,7 +160,13 @@ export default {
      axios({
             method: "post",
             url: API + "/execute",
-            data: this.form
+            data: {
+        repo: null,
+        notifications: [],
+        workflowFiles: this.workflowFiles,
+        backpushFiles: this.backpushFiles,
+        commitMessage: this.commitMessage,
+            }
           })
           .then(
             this.action.text = "Processing", this.action.active = true, this.action.btn_state = false,

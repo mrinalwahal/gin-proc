@@ -48,8 +48,9 @@ def execute():
                         global token
                         configure(
                         repoName = request.json['repo'], 
-                        workflowFile = request.json['workflowFile'], 
-                        backPushFile = request.json['backpushFile'], 
+                        commitMessage = request.json['commitMessage'], 
+                        workflowFiles = request.json['workflowFiles'], 
+                        backPushFiles = request.json['backpushFiles'], 
                         token = token, 
                         auth = auth
                         )
