@@ -16,6 +16,9 @@ from cryptography.hazmat.backends import default_backend as crypto_default_backe
 
 #print(os.environ['GIT_SSH_COMMAND'])
 #print(os.environ['GIN_SERVER'])
+
+os.environ['GIT_SSH_COMMAND'] = "ssh -i ~/gin-proc/ssh/gin_id_rsa"
+
 path = "http://" + os.environ['GIN_SERVER']
 api = gogs_client.GogsApi(path)
 

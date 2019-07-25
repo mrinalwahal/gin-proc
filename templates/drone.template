@@ -14,7 +14,7 @@ steps:
     restore: true
     mount:
       # Workspace volume you want to cache
-      - /drone/src/test/.snakemake
+      - /drone/src/.snakemake
 
 - name: prepare
   image: falconshock/gin-proc
@@ -26,41 +26,46 @@ steps:
     - eval $(ssh-agent -s)
     
     # "[+] Installing SSH Keys"
-    - mkdir /root/.ssh && echo "$SSH_KEY" > /root/.ssh/id_rsa && chmod 0600 /root/.ssh/gin_id_rsa
+    - mkdir /root/.ssh && echo "$SSH_KEY" > /root/.ssh/id_rsa && chmod 0600 /root/.ssh/id_rsa
     - echo "StrictHostKeyChecking no" >> /etc/ssh/ssh_config
     #- ssh-keyscan -H "$DRONE_SYSTEM_HOST" >> /root/.ssh/known_hosts
-    - ssh-add /root/.ssh/gin_id_rsa
+    - ssh-add /root/.ssh/id_rsa
     #- ssh -Tv git@"$DRONE_SYSTEM_HOST" -p 22 -i /root/.ssh/id_rsa
     
-    # "Cloning Repository."
+    # "[+] Cloning Repository."
     - git clone "$DRONE_GIT_SSH_URL"
     - cd "$DRONE_REPO_NAME"/
 
-    - git annex init ""$DRONE_REPO_NAME"-drone-annexe"
-    - git annex sync --content
-
+    - pip3 install snakemake
     - pip3 install -r requirements.txt
-    # "Annex syncing complete."
+    - git annex init ""$DRONE_REPO_NAME"-drone-annexe"
+    
+    #get-annexed-files
+    #- git annex get genome
 
-    #- python3 main.py test-annex.txt
-    # "Succesfully ran Annexed files."
+    #- pip3 install -r requirements.txt
 
     # "Executing Snakemake workflow."
     - snakemake
+    #- mv .snakemake/ ../
 
-    #- mkdir "$DRONE_BUILD_NUMBER"
-    #- git status | grep modified | awk '{print $2}'
-    #- git diff-tree -r --no-commit-id --name-only origin/master . | xargs -I '{}' cp '{}' "$DRONE_BUILD_NUMBER"/
+    - echo ".snakemake/" > .gitignore
 
     # "[+] Back-Pushing output."
-    - git stash
+    - TMPLOC=`mktemp -d`
+
+    #add-backpush-files
+    #- mv Sample1.txt "$TMPLOC"
     - git checkout gin-proc || git checkout -b gin-proc
+    - git reset --hard gin-proc
+    - mkdir "$DRONE_BUILD_NUMBER"
 
-    # Break-Point
-
-    #- echo ".snakemake/" > .gitignore
-    #- cd "$DRONE_BUILD_NUMBER"/
-    - git commit -a && git annex sync --content
+    #copy-backpush-files
+    #- mv "$TMPLOC"/Sample1.txt "$DRONE_BUILD_NUMBER"/
+    - git add "$DRONE_BUILD_NUMBER"/
+    - git commit "$DRONE_BUILD_NUMBER"/ -m "Adding output files"
+    - git annex sync --content
+    - git push origin gin-proc
 
 - name: rebuild-cache
   image: drillster/drone-volume-cache
@@ -71,7 +76,7 @@ steps:
     rebuild: true
     mount:
       # Workspace volume you want to retrieve cache from
-      - /drone/src/test/.snakemake
+      - /drone/src/.snakemake
 
 volumes:
   - name: cache

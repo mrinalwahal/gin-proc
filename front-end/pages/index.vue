@@ -42,7 +42,20 @@
     </b-input-group-append>
       </b-form-group>
 
-      <b-form-group id="input-group-2" label="Backpush File:" label-for="input-2">
+      <b-form-group id="input-group-2" label="Files to Annex" label-for="input-2">
+        <b-form-input
+          id="input-2"
+          v-for="x in anexxFilesCounter" :key="x"
+          v-model="annexFiles[x]"
+          required
+          placeholder="Enter file to annex"
+        ></b-form-input>
+    <b-input-group-append>
+      <b-button variant="info" v-on:click="addBackpushFile">Add File</b-button>
+    </b-input-group-append>
+      </b-form-group>
+
+      <b-form-group id="input-group-2" label="Backpush Files" label-for="input-2">
         <b-form-input
           id="input-2"
           v-for="x in backpushCounter" :key="x"
@@ -124,6 +137,8 @@ export default {
       workflowFiles: {},
       workflowCounter: 1,
       backpushCounter: 1,
+      annexFiles: {},
+      anexxFilesCounter: 1,
       execution_status: "Waiting for your workflow",
       action: {
         text: 'Submit',
@@ -144,6 +159,7 @@ export default {
       this.form = {
       workflowFiles: null,
         backpushFiles: null,
+        annexFiles: null,
         repo: null,
         notifications: [],
         commitMessage: null,
@@ -161,10 +177,11 @@ export default {
             method: "post",
             url: API + "/execute",
             data: {
-        repo: null,
+        repo: this.form.repo,
         notifications: [],
         workflowFiles: this.workflowFiles,
         backpushFiles: this.backpushFiles,
+        annexFiles: this.annexFiles,
         commitMessage: this.commitMessage,
             }
           })
