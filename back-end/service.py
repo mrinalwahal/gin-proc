@@ -78,7 +78,10 @@ def designWorkflow(files, repoPath):
 		for line in template.readlines():
 			if not '#Add-Files' in line: lines.append(line)
 			else:
-				lines.append("SAMPLES = [{}]".format(','.join(files.values())))
+				input_str = ""
+				for filename in files.values(): input_str += "'{}',".format(filename)
+				input_str = input_str[:-1]
+				lines.append("SAMPLES = [{}]".format(input_str))
 
 	template.close()
 
@@ -87,38 +90,28 @@ def designWorkflow(files, repoPath):
 
 	print("Workflow written at " + repoPath + "/Snakefile")
 
-def getAnnexedFiles(files, repoPath):
-	lines = []
-	with open('../templates/drone.template', 'r+') as template:
-		for line in template.readlines():
-			if not '#get-annexed-files' in line: lines.append(line)
-			else:
-				input_files = ""
-				for filename in files.values():
-					input_files += "'{}' ".format(filename)
-				lines.append(("    #- git annex get {}").format(input_files))
 
-	template.close()
-
-	with open(repoPath + '/.drone.yml', 'w+') as config: config.writelines(lines)
-	config.close()
-
-	print("Annexed files pulling configuration added at " + repoPath + "/.drone.yml")
-
-def designBackPush(files, repoPath):
+def designCIConfig(backPushfiles, annexFiles, repoPath):
 	lines = []
 	with open('../templates/drone.template', 'r+') as template:
 		for line in template.readlines():
 			if '#add-backpush-files' in line:
 				input_files = ""
-				for filename in files.values():
+				for filename in backPushfiles.values():
 					input_files += "'{}' ".format(filename)
-				lines.append(("    - mv {} '$TMPLOC'").format(input_files))
+				lines.append(('    - mv {} "$TMPLOC"').format(input_files))
 			elif '#copy-backpush-files' in line:
-				input_files = "'$TMPLOC'/"
-				for filename in files.values():
+				input_files = '"$TMPLOC"/'
+				for filename in backPushfiles.values():
 					input_files += "'{}' ".format(filename)
-				lines.append(("    - mv {} '$DRONE_BUILD_NUMBER'/").format(input_files))
+				lines.append(('    - mv {} "$DRONE_BUILD_NUMBER"/').format(input_files))
+			elif '#get-annexed-files' in line:
+				if len(annexFiles.values()) == 0: lines.append(("    - git annex sync --content")) 
+				else:
+					input_files = ""
+					for filename in annexFiles.values():
+						input_files += "'{}' ".format(filename)
+					lines.append(('    - git annex get {}').format(input_files))
 			else:
 				 lines.append(line)				
 
@@ -171,7 +164,6 @@ def configure(repoName, workflowFiles, backPushFiles, annexFiles, token, auth):
 	with tempfile.TemporaryDirectory() as temp_clone_path:
 		clone_path = clone(repo, auth.username, temp_clone_path)
 		designWorkflow(workflowFiles, clone_path)
-		getAnnexedFiles(annexFiles, clone_path)
-		designBackPush(backPushFiles, clone_path)
+		designCIConfig(backPushFiles, annexFiles, clone_path)
 		push(clone_path)
 		clean(clone_path)
