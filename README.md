@@ -142,8 +142,8 @@ On your Drone dashboard, access the settings for your repository.
 
 Now Add a new secret with the name `**DRONE_PRIVATE_SSH_KEY**`. And the value of this secret should be the private key `gin_id_rsa` contents. For that, simply copy paste the key content from your terminal.
 
-<a name="run-gin-proc"></a>
-**[7]** Run gin-proc microservice.
+<a name="run-proc"></a>
+## Run gin-proc microservice.
 
 Make sure your keys are installed with the GIN container. Micro-service, for now, skips ensuring/installing new keys on the GIN server (Its still in testing).
 
