@@ -134,7 +134,7 @@ export default {
       form: {
         repo: null,
         notifications: [],
-        commitMessage: null,
+        commitMessage: 'gin-proc is awesome',
       },
       backpushFiles: {},
       workflowFiles: {},
@@ -165,7 +165,7 @@ export default {
         annexFiles: {},
         repo: null,
         notifications: [],
-        commitMessage: null,
+        commitMessage: 'gin-proc is awesome',
       },
       this.action = {
         text: 'Submit',
@@ -181,11 +181,11 @@ export default {
             url: API + "/execute",
             data: {
         repo: this.form.repo,
-        notifications: [],
+        notifications: this.form.notifications,
         workflowFiles: this.workflowFiles,
         backpushFiles: this.backpushFiles,
         annexFiles: this.annexFiles,
-        commitMessage: this.commitMessage,
+        commitMessage: this.form.commitMessage,
             }
           })
           .then(

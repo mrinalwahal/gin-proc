@@ -37,13 +37,6 @@ def user():
     if request.method == "GET":
         print (user(auth, auth.username))
 """
-"""@app.route('/token', methods=['GET'])
-def token():
-    if request.method == "GET": 
-        global token
-        return (token.token)
-"""
-
 
 @app.route('/execute', methods=['POST'])
 def execute():
@@ -52,7 +45,7 @@ def execute():
                         global token
                         configure(
                                 repoName=request.json['repo'], 
-                                #commitMessage = request.json['commitMessage'],
+                                commitMessage = request.json['commitMessage'],
                                 workflowFiles=request.json['workflowFiles'],
                                 annexFiles=request.json['annexFiles'],
                                 backPushFiles=request.json['backpushFiles'],

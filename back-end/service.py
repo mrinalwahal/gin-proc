@@ -10,7 +10,7 @@ import os
 import gogs_client
 import tempfile
 
-from subprocess import call, Popen, PIPE
+from subprocess import call
 
 from cryptography.hazmat.primitives import serialization as crypto_serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -21,18 +21,14 @@ from cryptography.hazmat.backends import default_backend as crypto_default_backe
 path = "http://" + os.environ['GIN_SERVER']
 api = gogs_client.GogsApi(path)
 
-
 def user(auth, username):
 	return api.get_user(auth, username)
-
 
 def authorize(username, password):
     return gogs_client.UsernamePassword(username, password)
 
-
 def ensureToken(auth):
     return api.ensure_token(auth, 'gin-proc')
-
 
 def ensureKeys(token, user):
 	response = requests.get(path + "/api/v1/user/keys", headers = {'Authorization': 'token ' + str(token.token)})
@@ -149,27 +145,28 @@ def clone(repo, author, path):
 	os.makedirs(clone_path, exist_ok=True)
 
 	call(['git', 'clone', '--depth=1', repo.urls.clone_url, clone_path])
-	#os.system("git clone --depth=1 " + repo.urls.clone_url + " " + clone_path)
 
 	print("Repo cloned at " + clone_path)
 	return clone_path
 
 def clean(path):
 	call(['rm', '-rf', path])
-	#os.system("rm -rf " + path)
+
 	print("Repo cleaned from {}".format(path))
 
-def push(path):
-	#call(['cd', path, '&& git add . && git commit -m "Updated workflow" && git push origin master'])
-	os.system('cd ' + path + ' && git add . && git commit -m "Updated workflow" && git push origin master')
+def push(path, commitMessage):
+	call(['git', 'add', '.'], cwd=path)
+	call(['git', 'commit', '-m', commitMessage], cwd=path)
+	call(['git', 'push'], cwd=path)
+
 	print("Updates pushed from {}".format(path))
 
-def configure(repoName, workflowFiles, backPushFiles, annexFiles, token, auth):
+def configure(repoName, workflowFiles, backPushFiles, annexFiles, commitMessage, token, auth):
 	repo = getRepoData(auth, auth.username, repoName, token)
 
 	with tempfile.TemporaryDirectory() as temp_clone_path:
 		clone_path = clone(repo, auth.username, temp_clone_path)
 		designWorkflow(workflowFiles, clone_path)
 		designCIConfig(backPushFiles, annexFiles, clone_path)
-		push(clone_path)
+		push(clone_path, commitMessage)
 		clean(clone_path)
