@@ -142,6 +142,21 @@ On your Drone dashboard, access the settings for your repository.
 
 Now Add a new secret with the name `**DRONE_PRIVATE_SSH_KEY**`. And the value of this secret should be the private key `gin_id_rsa` contents. For that, simply copy paste the key content from your terminal.
 
+<a name="run-proc"></a>
+## Run gin-proc microservice.
+
+Make sure your keys are installed with the GIN container. Micro-service, for now, skips ensuring/installing new keys on the GIN server (Its still in testing).
+
+From project's root...
+```export GIN_SERVER=<GIN_IP>:<GIN_PORT>```
+
+```cd back-end && python server.py```
+
+On a new console, go back to project's root and..
+```cd front-end && npm run dev```
+
+Log in at your front-end app's SERVER IP displayed in console on endpoint `/login`. 
+Only log in with your GIN credentials.
 
 <br>
 

@@ -14,7 +14,7 @@ steps:
     restore: true
     mount:
       # Workspace volume you want to cache
-      - ./.snakemake
+      - /drone/src/.snakemake
 
 - name: prepare
   image: falconshock/gin-proc
@@ -36,27 +36,39 @@ steps:
     - git clone "$DRONE_GIT_SSH_URL"
     - cd "$DRONE_REPO_NAME"/
 
-    - [ -f requirements.txt ] && echo "Detected requirements file." && pip3 install -r requirements.txt || echo "No requirements file detected."
-
+    - pip3 install snakemake
+    - pip3 install -r requirements.txt
     - git annex init ""$DRONE_REPO_NAME"-drone-annexe"
-    - git annex sync --content
-    # "Annex syncing complete."
+    
+    #get-annexed-files
 
-    - python3 main.py test-annex.txt
-    # "Succesfully ran Annexed files."
+    #- git annex get genome
+
+    #- pip3 install -r requirements.txt
 
     # "Executing Snakemake workflow."
     - snakemake
+    #- mv .snakemake/ ../
 
-    - mkdir "$DRONE_BUILD_NUMBER"
-    #- git status | grep modified | awk '{print $2}'
-    #- git diff-tree -r --no-commit-id --name-only origin/master . | xargs -I '{}' cp '{}' "$DRONE_BUILD_NUMBER"/
+    - echo ".snakemake/" > .gitignore
 
     # "[+] Back-Pushing output."
+    - TMPLOC=`mktemp -d`
+
+    #add-backpush-files
+
+    #- mv Sample1.txt "$TMPLOC"
     - git checkout gin-proc || git checkout -b gin-proc
-    - echo ".snakemake/" > .gitignore
-    - cd "$DRONE_BUILD_NUMBER"/
-    - git status | grep modified | awk '{print $2}' | xargs git add && git status && git commit -am "Build '#'$DRONE_COMMIT_MESSAGE Complete" && git annex sync --content
+    - git reset --hard gin-proc
+    - mkdir "$DRONE_BUILD_NUMBER"
+
+    #copy-backpush-files
+
+    #- mv "$TMPLOC"/Sample1.txt "$DRONE_BUILD_NUMBER"/
+    - git add "$DRONE_BUILD_NUMBER"/
+    - git commit "$DRONE_BUILD_NUMBER"/ -m "Adding output files"
+    - git annex sync --content
+    - git push origin gin-proc
 
 - name: rebuild-cache
   image: drillster/drone-volume-cache
@@ -67,7 +79,7 @@ steps:
     rebuild: true
     mount:
       # Workspace volume you want to retrieve cache from
-      - ./.snakemake
+      - /drone/src/.snakemake
 
 volumes:
   - name: cache
