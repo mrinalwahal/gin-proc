@@ -41,6 +41,7 @@ steps:
     - git annex init ""$DRONE_REPO_NAME"-drone-annexe"
     
     #get-annexed-files
+
     #- git annex get genome
 
     #- pip3 install -r requirements.txt
@@ -55,12 +56,14 @@ steps:
     - TMPLOC=`mktemp -d`
 
     #add-backpush-files
+
     #- mv Sample1.txt "$TMPLOC"
     - git checkout gin-proc || git checkout -b gin-proc
     - git reset --hard gin-proc
     - mkdir "$DRONE_BUILD_NUMBER"
 
     #copy-backpush-files
+
     #- mv "$TMPLOC"/Sample1.txt "$DRONE_BUILD_NUMBER"/
     - git add "$DRONE_BUILD_NUMBER"/
     - git commit "$DRONE_BUILD_NUMBER"/ -m "Adding output files"

@@ -42,12 +42,16 @@
     </b-input-group-append>
       </b-form-group>
 
-      <b-form-group id="input-group-2" label="Files to Annex" label-for="input-2">
+      <b-form-group 
+      id="input-group-2" 
+      label="Files to Annex" 
+      label-for="input-2"
+      description="No annex inputs will simply get all the annex files."
+      >
         <b-form-input
           id="input-2"
           v-for="x in anexxFilesCounter" :key="x"
           v-model="annexFiles[x]"
-          required
           placeholder="Enter file to annex"
         ></b-form-input>
     <b-input-group-append>
@@ -60,7 +64,6 @@
           id="input-2"
           v-for="x in backpushCounter" :key="x"
           v-model="backpushFiles[x]"
-          required
           placeholder="Enter your backpush file"
         ></b-form-input>
     <b-input-group-append>
@@ -157,9 +160,9 @@ export default {
     },
     onReset() {
       this.form = {
-      workflowFiles: null,
-        backpushFiles: null,
-        annexFiles: null,
+      workflowFiles: {},
+        backpushFiles: {},
+        annexFiles: {},
         repo: null,
         notifications: [],
         commitMessage: null,

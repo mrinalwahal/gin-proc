@@ -96,15 +96,17 @@ def designCIConfig(backPushfiles, annexFiles, repoPath):
 	with open('../templates/drone.template', 'r+') as template:
 		for line in template.readlines():
 			if '#add-backpush-files' in line:
-				input_files = ""
-				for filename in backPushfiles.values():
-					input_files += "'{}' ".format(filename)
-				lines.append(('    - mv {} "$TMPLOC"').format(input_files))
+				if len(backPushfiles) > 0:
+					input_files = ""
+					for filename in backPushfiles.values():
+						input_files += "'{}' ".format(filename)
+					lines.append(('    - mv {} "$TMPLOC"').format(input_files))
 			elif '#copy-backpush-files' in line:
-				input_files = '"$TMPLOC"/'
-				for filename in backPushfiles.values():
-					input_files += "'{}' ".format(filename)
-				lines.append(('    - mv {} "$DRONE_BUILD_NUMBER"/').format(input_files))
+				if len(backPushfiles) > 0:
+					input_files = '"$TMPLOC"/'
+					for filename in backPushfiles.values():
+						input_files += "'{}' ".format(filename)
+					lines.append(('    - mv {} "$DRONE_BUILD_NUMBER"/').format(input_files))
 			elif '#get-annexed-files' in line:
 				if len(annexFiles.values()) == 0: lines.append(("    - git annex sync --content")) 
 				else:
