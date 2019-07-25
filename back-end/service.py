@@ -1,5 +1,5 @@
 #-------------------------------#
-# Env variables assigned 
+# Env variables assigned
 # GIN_SERVER=172.19.0.2:3000
 # GIT_SSH_COMMAND=ssh -i gin-proc/ssh/gin_id_rsa
 #-------------------------------#
@@ -21,14 +21,18 @@ from cryptography.hazmat.backends import default_backend as crypto_default_backe
 path = "http://" + os.environ['GIN_SERVER']
 api = gogs_client.GogsApi(path)
 
+
 def user(auth, username):
 	return api.get_user(auth, username)
+
 
 def authorize(username, password):
     return gogs_client.UsernamePassword(username, password)
 
+
 def ensureToken(auth):
     return api.ensure_token(auth, 'gin-proc')
+
 
 def ensureKeys(token, user):
 	response = requests.get(path + "/api/v1/user/keys", headers = {'Authorization': 'token ' + str(token.token)})
@@ -36,12 +40,12 @@ def ensureKeys(token, user):
 		if keys['title'] == 'gin_id_rsa': return 'gin_id_rsa'
 	
 	key = rsa.generate_private_key(
-    backend=crypto_default_backend(),
+	backend=crypto_default_backend(),
     public_exponent=65537,
     key_size=2048
 	)
 	private_key = key.private_bytes(
-    crypto_serialization.Encoding.PEM,
+	crypto_serialization.Encoding.PEM,
     crypto_serialization.PrivateFormat.PKCS8,
     crypto_serialization.NoEncryption())
 	public_key = key.public_key().public_bytes(
@@ -63,8 +67,8 @@ def ensureKeys(token, user):
 	#os.environ['GIT_SSH_COMMAND'] = "ssh -i " + SSH_PATH + "/gin_id_rsa"
 
 	response = requests.post(path + "/api/v1/user/keys", 
-	headers = {'Authorization': 'token ' + str(token.token)},
-	data = {'title': 'gin_id_rsa', 'key': public_key}
+	headers={'Authorization': 'token ' + str(token.token)},
+	data={'title': 'gin_id_rsa', 'key': public_key}
 	)
 
 	return 'gin_id_rsa'
