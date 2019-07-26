@@ -27,16 +27,11 @@ def login():
         global token
         token = ensureToken(auth=auth)
         print('token ensured: {}'.format(token.name))
-        #print('key ensured: {}'.format(ensureKeys(token, auth.username)))
+        # print('key ensured: {}'.format(ensureKeys(token, auth.username)))
         return ({'token': token.token}, 200)
     else:
         abort(400)
 
-"""@app.route('/user', methods=['GET'])
-def user():
-    if request.method == "GET":
-        print (user(auth, auth.username))
-"""
 
 @app.route('/execute', methods=['POST'])
 def execute():
@@ -45,14 +40,15 @@ def execute():
                         global token
                         configure(
                                 repoName=request.json['repo'], 
-                                commitMessage = request.json['commitMessage'],
+                                commitMessage=request.json['commitMessage'],
                                 workflowFiles=request.json['workflowFiles'],
                                 annexFiles=request.json['annexFiles'],
                                 backPushFiles=request.json['backpushFiles'],
                                 token=token,
                                 auth=auth
                         )
-                        return ("Success: workflow pushed to {}".format(request.json['repo']), 200)
+                        return ("Success: workflow pushed to {}".format(
+                                        request.json['repo']), 200)
                 else:
                         return ("Wrong Method", 501)
 
