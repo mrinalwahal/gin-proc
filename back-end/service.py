@@ -34,7 +34,8 @@ def ensureToken(auth):
     return api.ensure_token(auth, 'gin-proc')
 
 
-def ensureKeys(token):
+def ensureKeysOnServer(token):
+
     response = requests.get(
         path + "/api/v1/user/keys",
         headers={'Authorization': 'token ' + str(token.token)}
@@ -42,51 +43,93 @@ def ensureKeys(token):
 
     for keys in response.json():
         if keys['title'] == 'gin_id_rsa':
-            return 'gin_id_rsa'
 
-    key = rsa.generate_private_key(
-        backend=default_backend(),
-        public_exponent=65537,
-        key_size=2048
-    )
-    private_key = key.private_bytes(
-        serialization.Encoding.PEM,
-        serialization.PrivateFormat.PKCS8,
-        serialization.NoEncryption()
+            print('Key {} installed on the server'.format('gin_id_rsa'))
+            return (True)
+
+
+def ensureKeysOnLocal(path):
+
+    KEY_PATH = os.path.join(path, 'gin_id_rsa')
+    EXISTS = os.path.exists(KEY_PATH)
+    print('Key {} installed locally'.format('gin_id_rsa') is EXISTS)
+    return EXISTS
+
+
+def installFreshKeys(SSH_PATH, token):
+
+        key = rsa.generate_private_key(
+            backend=default_backend(),
+            public_exponent=65537,
+            key_size=2048
         )
-    public_key = key.public_key().public_bytes(
-        serialization.Encoding.OpenSSH,
-        serialization.PublicFormat.OpenSSH
-    )
+        private_key = key.private_bytes(
+            serialization.Encoding.PEM,
+            serialization.PrivateFormat.PKCS8,
+            serialization.NoEncryption()
+            )
+        public_key = key.public_key().public_bytes(
+            serialization.Encoding.OpenSSH,
+            serialization.PublicFormat.OpenSSH
+        )
+
+        os.makedirs(SSH_PATH, exist_ok=True)
+
+        with open(
+            os.path.join(SSH_PATH, '/gin_id_rsa'),
+                'w+') as private_key_file:
+
+            private_key_file.write(private_key.decode('utf-8'))
+
+        with open(
+            os.path.join(SSH_PATH, '/gin_id_rsa.pub'),
+                'w+') as public_key_file:
+
+            public_key_file.write(public_key.decode('utf-8'))
+
+        os.chmod(SSH_PATH, 0o700)
+        os.chmod(SSH_PATH + '/gin_id_rsa', 0o600)
+        os.chmod(SSH_PATH + '/gin_id_rsa.pub', 0o600)
+
+        # os.environ['GIT_SSH_COMMAND'] = "ssh -i " + SSH_PATH + "/gin_id_rsa"
+
+        requests.post(
+            path + "/api/v1/user/keys",
+            headers={'Authorization': 'token ' + str(token.token)},
+            data={'title': 'gin_id_rsa', 'key': public_key}
+        )
+
+        print('Fresh Key pair installed with pub key {}'.format('gin_id_rsa'))
+        return 'gin_id_rsa'
+
+
+def ensureKeys(token):
 
     SSH_PATH = os.path.join('/gin-proc', 'ssh')
-    os.makedirs(SSH_PATH, exist_ok=True)
 
-    with open(
-        os.path.join(SSH_PATH, '/gin_id_rsa'),
-            'w+') as private_key_file:
+    if ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
+        return True
 
-        private_key_file.write(private_key.decode('utf-8'))
+    elif ensureKeysOnServer(token) and not ensureKeysOnLocal(SSH_PATH):
+        print("Key {} is installed on the server but not locally. \
+        Kindly delete your key online so we can install a fresh key pair.")
 
-    with open(
-        os.path.join(SSH_PATH, '/gin_id_rsa.pub'),
-            'w+') as public_key_file:
+        return False
 
-        public_key_file.write(public_key.decode('utf-8'))
+    elif not ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
+        print("Key {} is installed locally but not on the server.")
 
-    os.chmod(SSH_PATH, 0o700)
-    os.chmod(SSH_PATH + '/gin_id_rsa', 0o600)
-    os.chmod(SSH_PATH + '/gin_id_rsa.pub', 0o600)
+        os.remove(os.path.join(SSH_PATH, 'gin_id_rsa'))
+        os.remove(os.path.join(SSH_PATH, 'gin_id_rsa.pub'))
+        print('Removed local keys.')
 
-    # os.environ['GIT_SSH_COMMAND'] = "ssh -i " + SSH_PATH + "/gin_id_rsa"
+        installFreshKeys(SSH_PATH, token)
 
-    response = requests.post(
-        path + "/api/v1/user/keys",
-        headers={'Authorization': 'token ' + str(token.token)},
-        data={'title': 'gin_id_rsa', 'key': public_key}
-    )
+        print('Fresh keys installed both locally and on the server.')
+        return True
 
-    return 'gin_id_rsa'
+    else:
+        installFreshKeys(SSH_PATH, token)
 
 
 def validUser(auth):
