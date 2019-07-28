@@ -17,14 +17,9 @@
     "@nuxtjs/axios": "^5.5.4",
     "@nuxtjs/pwa": "^2.6.0",
     "bootstrap": "^4.1.3",
-<<<<<<< HEAD
     "nuxt": "^2.0.0",
     "semantic-ui-css": "^2.4.1",
     "semantic-ui-vue": "^0.8.1"
-=======
-    "bootstrap-vue": "^2.0.0-rc.11",
-    "nuxt": "^2.0.0"
->>>>>>> 2e79cf169fdc3345ce863ac2426f531b4d28c04c
   },
   "devDependencies": {
     "@nuxtjs/eslint-config": "^0.0.1",
