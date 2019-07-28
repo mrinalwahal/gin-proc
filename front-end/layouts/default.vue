@@ -1,5 +1,6 @@
 <template>
   <div>
+<<<<<<< HEAD
     <sui-container>
     <Header />
     <nuxt />
@@ -20,6 +21,12 @@ export default {
 </script>
 
 
+=======
+    <nuxt />
+  </div>
+</template>
+
+>>>>>>> 2e79cf169fdc3345ce863ac2426f531b4d28c04c
 <style>
 html {
   font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI',

@@ -11,6 +11,10 @@ Flask-Cors==3.0.8
 future==0.17.1
 gitdb2==2.0.5
 GitPython==2.1.11
+<<<<<<< HEAD
+=======
+gogs-client==1.0.6
+>>>>>>> 2e79cf169fdc3345ce863ac2426f531b4d28c04c
 idna==2.8
 isort==4.3.21
 itsdangerous==1.1.0

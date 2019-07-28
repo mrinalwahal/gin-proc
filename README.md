@@ -132,7 +132,11 @@ Now go to your terminal and copy your `gin_id_rsa.pub` key and install it in gin
 **[5]** Create **drone** CI/CD service container.
 
 ```
+<<<<<<< HEAD
     docker run --volume=/var/run/docker.sock:/var/run/docker.sock --volume=/gin-proc/repo:/repo --volume=/gin-proc/cache:/cache --env=DRONE_GIT_ALWAYS_AUTH=false --env=DRONE_GOGS_SERVER=http://<GIN_SERVER_IP>:3000  --env=DRONE_RUNNER_CAPACITY=2 --env=DRONE_RUNNER_NETWORKS=gin --env=DRONE_SERVER_HOST=172.19.0.3  --env=DRONE_SERVER_PROTO=http --env=DRONE_TLS_AUTOCERT=false --env=DRONE_USER_CREATE=username:<GIN_USERNAME>,admin:true --publish=80:80 --publish=443:443 --publish=2224:22 --restart=always --detach=true --net gin --name=drone drone/drone:latest
+=======
+docker run --volume=/var/run/docker.sock:/var/run/docker.sock --volume=/tmp/cache:/cache --env=DRONE_GIT_ALWAYS_AUTH=false --env=DRONE_GOGS_SERVER=http://<GOGS_SERVER>:3000  --env=DRONE_RUNNER_CAPACITY=2 --env=DRONE_RUNNER_NETWORKS=gin --env=DRONE_SERVER_HOST=172.19.0.3  --env=DRONE_SERVER_PROTO=http --env=DRONE_TLS_AUTOCERT=false --env=DRONE_USER_CREATE=username:<GOGS_USERNAME>,admin:true --publish=80:80 --publish=443:443 --publish=2224:22 --restart=always --detach=true --net gin --name=drone-cache drone/drone:latest
+>>>>>>> 2e79cf169fdc3345ce863ac2426f531b4d28c04c
  ```
 Access drone at `172.19.0.3:80` in your browser. You will get a list of your repositories. Click on **ACTIVATE** for which your want to enable **gin-proc** microservice.
 
@@ -143,7 +147,11 @@ On your Drone dashboard, access the settings for your repository.
 Now Add a new secret with the name `**DRONE_PRIVATE_SSH_KEY**`. And the value of this secret should be the private key `gin_id_rsa` contents. For that, simply copy paste the key content from your terminal.
 
 <a name="run-proc"></a>
+<<<<<<< HEAD
 ## Run gin-proc microservice
+=======
+## Run gin-proc microservice.
+>>>>>>> 2e79cf169fdc3345ce863ac2426f531b4d28c04c
 
 Make sure your keys are installed with the GIN container. Micro-service, for now, skips ensuring/installing new keys on the GIN server (Its still in testing).
 

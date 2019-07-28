@@ -1,5 +1,9 @@
 FROM ubuntu
+<<<<<<< HEAD
 RUN apt-get update && apt-get install python3-pip openssh-server openssh-client -y
 RUN apt-get install git git-annex -y
 RUN pip3 install snakemake
 
+=======
+RUN apt-get update
+>>>>>>> 2e79cf169fdc3345ce863ac2426f531b4d28c04c
