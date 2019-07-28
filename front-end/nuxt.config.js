@@ -1,10 +1,8 @@
 export default {
   mode: 'universal',
-  /*
   router: {
     middleware: ['auth']
   },
-  */
   /*
    ** Headers of the page
    */
@@ -37,32 +35,36 @@ export default {
    ** Nuxt.js modules
    */
   modules: [
-    // Doc: https://bootstrap-vue.js.org/docs/
-    'bootstrap-vue/nuxt',
-    // Doc: https://axios.nuxtjs.org/usage
+    'semantic-ui-vue/nuxt',
     '@nuxtjs/axios',
-    '@nuxtjs/pwa'
+    '@nuxtjs/pwa',
+    '@nuxtjs/auth'
     // '@nuxtjs/eslint-module'
   ],
   /*
    ** Axios module configuration
    ** See https://axios.nuxtjs.org/options
    */
-  axios: {},
-  env: {
-    HOST_URL: process.env.HOST_URL || 'http://127.0.0.1:5000'
+  axios: {
+    baseURL: 'http://localhost:8000'
   },
   auth: {
     strategies: {
       local: {
         endpoints: {
           login: { url: '/login', method: 'post', propertyName: 'token' },
-          // logout: { url: '/api/auth/logout', method: 'post' },
+          logout: { url: '/logout', method: 'post' },
           user: { url: '/user', method: 'get', propertyName: false }
-        }
-        // tokenRequired: true,
-        // tokenType: 'bearer'
+        },
+        tokenRequired: true,
+        tokenType: 'token'
       }
+    },
+    redirect: {
+      login: '/login',
+      logout: '/login',
+      callback: '/login',
+      home: '/'
     }
   },
   /*

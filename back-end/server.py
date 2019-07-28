@@ -1,5 +1,5 @@
 import os
-from service import configure, authorize, ensureToken, ensureKeys, validUser, getRepos, user
+from service import configure, ensureToken, ensureKeys, getRepos, user
 
 from flask import Flask, request, abort, render_template, jsonify, make_response
 from flask_cors import CORS, cross_origin
@@ -8,7 +8,7 @@ cors = CORS(app)
 app.config['CORS_HEADERS'] = 'Content-Type'
 
 
-auth = None
+username = None
 token = None
 
 
@@ -16,19 +16,36 @@ token = None
 def index(): return render_template('index.html')
 
 
+@app.route('/logout', methods=['POST'])
+def logMeOut():
+
+        if request.method == "POST":
+                return ("logged out", 200)
+
+
 @app.route('/login', methods=['POST'])
 @cross_origin()
 def login():
     if request.method == "POST":
-        global auth
-        auth = authorize(username=request.json['username'], password=request.json['password'])
-        if not validUser(auth): abort(400)
-        print("User {} logged in".format(request.json['username']))
+
+        global username
+        username = request.json['username']
+        password = request.json['password']
+
         global token
-        token = ensureToken(auth=auth)
-        print('token ensured: {}'.format(token.name))
+        token = ensureToken(username, password)
+        print('token ensured: {}'.format(token))
         # print('key ensured: {}'.format(ensureKeys(token, auth.username)))
-        return ({'token': token.token}, 200)
+        return ({'token': token}, 200)
+    else:
+        abort(400)
+
+
+@app.route('/user', methods=['GET'])
+@cross_origin()
+def getUser():
+    if request.method == "GET":
+        return (user(token), 200)
     else:
         abort(400)
 
@@ -36,16 +53,17 @@ def login():
 @app.route('/execute', methods=['POST'])
 def execute():
                 if request.method == "POST":
-                        global auth
+                        global username
                         global token
                         configure(
-                                repoName=request.json['repo'], 
+                                repoName=request.json['repo'],
+                                notifications=request.json['notifications'],
                                 commitMessage=request.json['commitMessage'],
                                 workflowFiles=request.json['workflowFiles'],
                                 annexFiles=request.json['annexFiles'],
                                 backPushFiles=request.json['backpushFiles'],
                                 token=token,
-                                auth=auth
+                                username=username
                         )
                         return ("Success: workflow pushed to {}".format(
                                         request.json['repo']), 200)
@@ -54,9 +72,14 @@ def execute():
 
 
 @app.route('/repos', methods=['GET'])
+@cross_origin()
 def repos():
     if request.method == "GET":
-        return jsonify([repo.name for repo in getRepos(auth, auth.username)])
+        global username
+        return jsonify([
+                {'value': repo['name'], 'text': username + '/' + repo['name']}
+                for repo in getRepos(username, token)
+                ])
 
 if __name__ == '__main__':
     app.run(debug=True, port=8000, host="0.0.0.0")
