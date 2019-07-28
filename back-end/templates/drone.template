@@ -16,8 +16,11 @@ steps:
       # Workspace volume you want to cache
       - /drone/src/.snakemake
 
-- name: prepare
-  image: falconshock/gin-proc
+- name: execute
+  image: falconshock/gin-proc:micro-test
+  volumes:
+  - name: repo
+    path: /repo
   environment:
     SSH_KEY:
       from_secret: DRONE_PRIVATE_SSH_KEY  
@@ -26,7 +29,9 @@ steps:
     - eval $(ssh-agent -s)
     
     # "[+] Installing SSH Keys"
-    - mkdir /root/.ssh && echo "$SSH_KEY" > /root/.ssh/id_rsa && chmod 0600 /root/.ssh/id_rsa
+
+    - mkdir -p /root/.ssh && echo "$SSH_KEY" > /root/.ssh/id_rsa && chmod 0600 /root/.ssh/id_rsa
+    - mkdir -p /etc/ssh
     - echo "StrictHostKeyChecking no" >> /etc/ssh/ssh_config
     #- ssh-keyscan -H "$DRONE_SYSTEM_HOST" >> /root/.ssh/known_hosts
     - ssh-add /root/.ssh/id_rsa
@@ -36,7 +41,7 @@ steps:
     - git clone "$DRONE_GIT_SSH_URL"
     - cd "$DRONE_REPO_NAME"/
 
-    - pip3 install snakemake
+    #- pip3 install snakemake
     - pip3 install -r requirements.txt
     - git annex init ""$DRONE_REPO_NAME"-drone-annexe"
     
@@ -44,9 +49,6 @@ steps:
 
     #- git annex get genome
 
-    #- pip3 install -r requirements.txt
-
-    # "Executing Snakemake workflow."
     - snakemake
     #- mv .snakemake/ ../
 
@@ -58,8 +60,9 @@ steps:
     #add-backpush-files
 
     #- mv Sample1.txt "$TMPLOC"
-    - git checkout gin-proc || git checkout -b gin-proc
-    - git reset --hard gin-proc
+    - git checkout --orphan gin-proc
+    - git reset --hard
+    #- git rm --cached -r . --force
     - mkdir "$DRONE_BUILD_NUMBER"
 
     #copy-backpush-files
@@ -67,8 +70,8 @@ steps:
     #- mv "$TMPLOC"/Sample1.txt "$DRONE_BUILD_NUMBER"/
     - git add "$DRONE_BUILD_NUMBER"/
     - git commit "$DRONE_BUILD_NUMBER"/ -m "Adding output files"
-    - git annex sync --content
     - git push origin gin-proc
+    - git annex sync --content
 
 - name: rebuild-cache
   image: drillster/drone-volume-cache
@@ -85,7 +88,12 @@ volumes:
   - name: cache
     host: 
       # Mounted cache directory from your host machine
-      path: /tmp/cache
+      path: /gin-proc/cache
+  - name: repo
+    host: 
+      # Mounted repo directory from your host machine
+      path: /gin-proc/repo
+
 
 #add-notifications
 

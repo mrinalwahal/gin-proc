@@ -7,7 +7,6 @@
 
 import requests
 import os
-import gogs_client
 import tempfile
 
 from subprocess import call
@@ -19,19 +18,34 @@ from cryptography.hazmat.backends import default_backend
 # print(os.environ['GIT_SSH_COMMAND'])
 # print(os.environ['GIN_SERVER'])
 path = "http://" + os.environ['GIN_SERVER']
-api = gogs_client.GogsApi(path)
 
 
-def user(auth, username):
-    return api.get_user(auth, username)
+def user(token):
+    response = requests.get(
+        path + "/api/v1/user",
+        headers={'Authorization': 'token ' + str(token)}
+        ).json()
+
+    return response
 
 
-def authorize(username, password):
-    return gogs_client.UsernamePassword(username, password)
+def ensureToken(username, password):
 
+    res = requests.get(
+        path + "/api/v1/users/{}/tokens".format(username),
+        auth=(username, password)).json()
 
-def ensureToken(auth):
-    return api.ensure_token(auth, 'gin-proc')
+    for token in res:
+        if token['name'] == 'gin-proc':
+            return token['sha1']
+
+    res = requests.post(
+        path + "/api/v1/users/{}/tokens".format(username),
+        auth=(username, password),
+        data={'name': 'gin-proc'}
+    ).json()
+
+    return res['sha1'] 
 
 
 def ensureKeysOnServer(token):
@@ -132,10 +146,6 @@ def ensureKeys(token):
         installFreshKeys(SSH_PATH, token)
 
 
-def validUser(auth):
-    return api.valid_authentication(auth)
-
-
 def designWorkflow(files, repoPath):
     lines = []
 
@@ -166,13 +176,16 @@ def designWorkflow(files, repoPath):
 
 def addNotifications(lines, notifications):
 
-    if 'slack' in notifications:
-        with open(
-            os.path.join('templates', 'slack.template'),
-                'r+') as slack:
+    for notif in notifications:
+        if notif['value']:
+            if notif['name'] == "slack":
+                print("notification detected: {}".format("slack"))
+                with open(
+                    os.path.join('templates', 'slack.template'),
+                        'r+') as slack:
 
-                for notif_lines in slack:
-                    lines.append(notif_lines)
+                        for notif_lines in slack:
+                            lines.append(notif_lines)
 
 
 def designCIConfig(notifications, backPushfiles, annexFiles, repoPath):
@@ -193,9 +206,9 @@ def designCIConfig(notifications, backPushfiles, annexFiles, repoPath):
 
             elif '#copy-backpush-files' in line:
                 if len(backPushfiles) > 0:
-                    input_files = '"$TMPLOC"/'
+                    input_files = ''
                     for filename in backPushfiles.values():
-                        input_files += "'{}' ".format(filename)
+                        input_files += '"$TMPLOC"/"{}" '.format(filename)
                     lines.append('    - mv {} "$DRONE_BUILD_NUMBER"/'.format(
                         input_files))
 
@@ -224,28 +237,30 @@ def designCIConfig(notifications, backPushfiles, annexFiles, repoPath):
     print("Configuration written at " + repoPath + "/.drone.yml")
 
 
-def getRepos(auth, user):
-    return api.get_user_repos(auth, user)
-
-
-def getRepoData(auth, user, repo, token):
-
-    """
-    response = requests.get(
-        path + "/api/v1/repos/" + str(user) + "/" + str(repo), 
-        headers = {'Authorization': 'token ' + str(token.token)}
+def getRepos(user, token):
+    res = requests.get(
+        path + "/api/v1/users/{}/repos".format(user),
+        headers={'Authorization': 'token ' + str(token)},
         ).json()
-    print(response)
-    """
-    print('Repo {} fetched'.format(repo))
-    return api.get_repo(auth, user, repo)
+
+    return res
+
+
+def getRepoData(user, repo, token):
+
+    response = requests.get(
+        path + "/api/v1/repos/{0}/{1}".format(user, repo),
+        headers={'Authorization': 'token ' + str(token)}
+        ).json()
+
+    return response
 
 
 def clone(repo, author, path):
-    clone_path = os.path.join(path, author, repo.name)
+    clone_path = os.path.join(path, author, repo['name'])
     os.makedirs(clone_path, exist_ok=True)
 
-    call(['git', 'clone', '--depth=1', repo.urls.clone_url, clone_path])
+    call(['git', 'clone', '--depth=1', repo['clone_url'], clone_path])
 
     print("Repo cloned at " + clone_path)
     return clone_path
@@ -273,13 +288,13 @@ def configure(
         commitMessage,
         notifications,
         token,
-        auth
+        username
         ):
 
-    repo = getRepoData(auth, auth.username, repoName, token)
+    repo = getRepoData(username, repoName, token)
 
     with tempfile.TemporaryDirectory() as temp_clone_path:
-        clone_path = clone(repo, auth.username, temp_clone_path)
+        clone_path = clone(repo, username, temp_clone_path)
         designWorkflow(workflowFiles, clone_path)
         designCIConfig(notifications, backPushFiles, annexFiles, clone_path)
         push(clone_path, commitMessage)
