@@ -7,10 +7,7 @@
 
 import requests
 import os
-<<<<<<< HEAD
-=======
 from shutil import rmtree
->>>>>>> master
 import tempfile
 
 from subprocess import call
@@ -31,14 +28,8 @@ def user(token):
         ).json()
 
     return response
-<<<<<<< HEAD
-=======
 
->>>>>>> master
 
-def ensureToken(username, password):
-
-<<<<<<< HEAD
 def ensureToken(username, password):
 
     res = requests.get(
@@ -49,27 +40,13 @@ def ensureToken(username, password):
         if token['name'] == 'gin-proc':
             return token['sha1']
 
-=======
-    res = requests.get(
-        path + "/api/v1/users/{}/tokens".format(username),
-        auth=(username, password)).json()
-
-    for token in res:
-        if token['name'] == 'gin-proc':
-            return token['sha1']
-
->>>>>>> master
     res = requests.post(
         path + "/api/v1/users/{}/tokens".format(username),
         auth=(username, password),
         data={'name': 'gin-proc'}
     ).json()
 
-<<<<<<< HEAD
-    return res['sha1'] 
-=======
     return res['sha1']
->>>>>>> master
 
 
 def ensureKeysOnServer(token):
