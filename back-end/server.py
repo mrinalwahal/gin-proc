@@ -20,8 +20,8 @@ def index(): return render_template('index.html')
 @app.route('/logout', methods=['POST'])
 def logMeOut():
 
-        if request.method == "POST":
-                return ("logged out", 200)
+    if request.method == "POST":
+            return ("logged out", 200)
 
 
 @app.route('/login', methods=['POST'])
@@ -53,23 +53,23 @@ def getUser():
 
 @app.route('/execute', methods=['POST'])
 def execute():
-                if request.method == "POST":
-                        global username
-                        global token
-                        configure(
-                                repoName=request.json['repo'],
-                                notifications=request.json['notifications'],
-                                commitMessage=request.json['commitMessage'],
-                                workflowFiles=request.json['workflowFiles'],
-                                annexFiles=request.json['annexFiles'],
-                                backPushFiles=request.json['backpushFiles'],
-                                token=token,
-                                username=username
-                        )
-                        return ("Success: workflow pushed to {}".format(
-                                        request.json['repo']), 200)
-                else:
-                        return ("Wrong Method", 501)
+        if request.method == "POST":
+                global username
+                global token
+                configure(
+                        repoName=request.json['repo'],
+                        notifications=request.json['notifications'],
+                        commitMessage=request.json['commitMessage'],
+                        workflowFiles=request.json['workflowFiles'],
+                        annexFiles=request.json['annexFiles'],
+                        backPushFiles=request.json['backpushFiles'],
+                        token=token,
+                        username=username
+                )
+                return ("Success: workflow pushed to {}".format(
+                                request.json['repo']), 200)
+        else:
+                return ("Wrong Method", 501)
 
 
 @app.route('/repos', methods=['GET'])

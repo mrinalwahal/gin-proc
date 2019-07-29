@@ -7,6 +7,7 @@
 
 import requests
 import os
+from shutil import rmtree
 import tempfile
 
 from subprocess import call
@@ -45,7 +46,7 @@ def ensureToken(username, password):
         data={'name': 'gin-proc'}
     ).json()
 
-    return res['sha1'] 
+    return res['sha1']
 
 
 def ensureKeysOnServer(token):
@@ -90,13 +91,13 @@ def installFreshKeys(SSH_PATH, token):
         os.makedirs(SSH_PATH, exist_ok=True)
 
         with open(
-            os.path.join(SSH_PATH, '/gin_id_rsa'),
+            os.path.join(SSH_PATH, 'gin_id_rsa'),
                 'w+') as private_key_file:
 
             private_key_file.write(private_key.decode('utf-8'))
 
         with open(
-            os.path.join(SSH_PATH, '/gin_id_rsa.pub'),
+            os.path.join(SSH_PATH, 'gin_id_rsa.pub'),
                 'w+') as public_key_file:
 
             public_key_file.write(public_key.decode('utf-8'))
@@ -125,7 +126,7 @@ def ensureKeys(token):
         return True
 
     elif ensureKeysOnServer(token) and not ensureKeysOnLocal(SSH_PATH):
-        print("Key {} is installed on the server but not locally. \
+        print("Key is installed on the server but not locally. \
         Kindly delete your key online so we can install a fresh key pair.")
 
         return False
@@ -164,12 +165,8 @@ def designWorkflow(files, repoPath):
                 input_str = input_str[:-1]
                 lines.append("SAMPLES = [{}]".format(input_str))
 
-    template.close()
-
     with open(os.path.join(repoPath, 'Snakefile'), 'w+') as config: 
         config.writelines(lines)
-
-    config.close()
 
     print("Workflow written at " + repoPath + "/Snakefile")
 
@@ -227,12 +224,8 @@ def designCIConfig(notifications, backPushfiles, annexFiles, repoPath):
             else:
                 lines.append(line)
 
-    template.close()
-
     with open(repoPath + '/.drone.yml', 'w+') as config:
         config.writelines(lines)
-
-    config.close()
 
     print("Configuration written at " + repoPath + "/.drone.yml")
 
@@ -275,7 +268,7 @@ def push(path, commitMessage):
 
 
 def clean(path):
-    call(['rm', '-rf', path])
+    rmtree(path)
 
     print("Repo cleaned from {}".format(path))
 
