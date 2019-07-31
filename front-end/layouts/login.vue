@@ -1,19 +1,14 @@
 <template>
   <div>
-    <sui-container>
-    <Header />
     <nuxt />
     <Footer />
-    </sui-container>
   </div>
 </template>
 
 <script>
-import Header from './partials/header'
 import Footer from './partials/footer'
 export default {
   components: {
-    Header,
     Footer
   }
 }
