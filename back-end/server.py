@@ -35,8 +35,9 @@ def login():
         global token
         token = ensureToken(username, password)
         print('token ensured: {}'.format(token))
-        # print('key ensured: {}'.format(ensureKeys(token, auth.username)))
-        return ({'token': token}, 200)
+
+        if ensureKeys(token):
+                return ({'token': token}, 200)
     else:
         abort(400)
 
@@ -60,9 +61,10 @@ def execute():
                         repoName=request.json['repo'],
                         notifications=request.json['notifications'],
                         commitMessage=request.json['commitMessage'],
-                        workflowFiles=request.json['workflowFiles'],
-                        annexFiles=request.json['annexFiles'],
-                        backPushFiles=request.json['backpushFiles'],
+                        userInputs=list(request.json['userInputs'].values()),
+                        annexFiles=list(request.json['annexFiles'].values()),
+                        backPushFiles=list(request.json['backpushFiles'].values()),
+                        workflow=request.json['workflow'],
                         token=token,
                         username=username
                 )
