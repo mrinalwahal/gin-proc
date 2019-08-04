@@ -49,9 +49,8 @@ steps:
 
     #- git annex get genome
 
-    - snakemake
-    #- mv .snakemake/ ../
-
+    #add-workflow
+    
     - echo ".snakemake/" > .gitignore
 
     # "[+] Back-Pushing output."

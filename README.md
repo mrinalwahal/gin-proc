@@ -97,7 +97,7 @@ Save the keys as `gin_id_rsa.pub` and `gin_id_rsa`.
 **Or** if you do not have a **gin** service container running already, then start a new one with the following command.
 To keep things easier, we'll attach a static IP `172.19.0.2` to this container so that we don't have to inspect the docker network for changes in IP later.
 
-`docker run --name=gin --net <network-name> --ip 172.19.0.2 -p 10022:22 -p 3000:3000 -v /var/gogs:/data gnode/gin-web`
+`docker run --name=gin --net <network-name> --ip 172.19.0.2 -p 10022:22 -p 3000:3000 -v /var/gogs:/data gnode/gin-web:rebased`
 
 If you already had a gin container running, then run the following command to check and copy IP address of **gin** service container.
 
