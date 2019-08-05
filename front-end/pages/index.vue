@@ -38,6 +38,33 @@
 
         <sui-form @submit.stop.prevent @submit="onSubmit" @reset="onReset">
           <sui-grid>
+<<<<<<< HEAD
+
+            <sui-grid-row>
+          <sui-grid-column :width="16" textAlign="left">
+                          <sui-form-field>
+              <label>
+                <i class="icon file alternate outline" />
+                Choose Workflow Style
+                </label>
+              <sui-dropdown placeholder="None as of now" selection :options="workflow" v-model="form.workflow" />
+            </sui-form-field>
+          </sui-grid-column>
+            </sui-grid-row>
+
+            <sui-grid-row v-show="form.workflow">
+          <sui-grid-column :width="8" textAlign="left">
+            <sui-form-field required>
+              <label>
+                <i class="icon file alternate outline" />
+                <span v-if="form.workflow =='custom'">Commands</span>
+                <span v-else>SnakeFile Path</span>
+                <a style="float:right; color:black" data-inverted='' data-tooltip="Files will be executed in the same order you add them in.">
+                  <i class="icon help circle" /> </a>
+                <i v-if="form.workflow =='custom'" class="icon plus" style="float:right" v-on:click="inputCounter += 1" />
+                <i v-if="form.workflow =='custom' && inputCounter > 1" class="icon minus" style="float:right" v-on:click="removeInput" /></label>
+              <sui-input v-for="x in inputCounter" :key="x" v-model="userInputs[x]" required />
+=======
             <sui-grid-row>
           <sui-grid-column :width="8" textAlign="left">
             <sui-form-field>
@@ -49,6 +76,7 @@
                 <i class="icon plus" style="float:right" v-on:click="workflowCounter += 1" />
                 <i class="icon minus" style="float:right" v-if="workflowCounter > 1" v-on:click="workflowCounter -= 1" /></label>
               <sui-input v-for="x in workflowCounter" :key="x" v-model="workflowFiles[x]" required />
+>>>>>>> master
             </sui-form-field>
             <sui-form-field>
               <label>
@@ -56,7 +84,11 @@
                 Annex files
                 <a style="float:right; color:black" data-inverted='' data-tooltip="If no files are mentioned, then all required files will be annexed."><i class="icon help circle" /> </a>
                 <i class="icon plus" style="float:right" v-on:click="annexCounter += 1" />
+<<<<<<< HEAD
+                <i class="icon minus" style="float:right" v-if="annexCounter > 1" v-on:click="removeAnnex" />
+=======
                 <i class="icon minus" style="float:right" v-if="annexCounter > 1" v-on:click="annexCounter -= 1" />
+>>>>>>> master
                 </label>
               <sui-input v-for="x in annexCounter" :key="x" v-model="annexFiles[x]"></sui-input>
             </sui-form-field>
@@ -66,14 +98,24 @@
                 Backpush files
                 <a style="float:right; color:black" data-inverted='' data-tooltip="These are the output files which will be pushed to a separate gin-proc branch in your repo."><i class="icon help circle" /> </a>
                 <i class="icon plus" style="float:right" v-on:click="backpushCounter += 1" />
+<<<<<<< HEAD
+                <i class="icon minus" style="float:right" v-if="backpushCounter > 1" v-on:click="removeBackPush" /></label>
+=======
                 <i class="icon minus" style="float:right" v-if="backpushCounter > 1" v-on:click="backpushCounter -= 1" /></label>
+>>>>>>> master
               <sui-input v-for="x in backpushCounter" :key="x" v-model="backpushFiles[x]"></sui-input>
             </sui-form-field>
             </sui-grid-column>
           <sui-grid-column :width="8" textAlign="left">
+<<<<<<< HEAD
+            <sui-form-field required>
+              <label><i class="icon folder outline" />Repository</label>
+              <sui-dropdown placeholder="Choose One" required selection :options="repos" v-model="form.repo" />
+=======
             <sui-form-field>
               <label><i class="icon folder outline" />Repository</label>
               <sui-dropdown placeholder="Choose One" selection :options="repos" v-model="form.repo" />
+>>>>>>> master
             </sui-form-field>
             <sui-form-field>
               <label><i class="icon paper plane outline" />Commit Message</label>
@@ -89,10 +131,20 @@
             </sui-form-field>
             </sui-grid-column>
             </sui-grid-row>
+<<<<<<< HEAD
+            <sui-grid-row v-show="form.workflow">
+              <sui-grid-column :width="8" textAlign="left">
+                <i class="icon cog blue loading" v-if="action.active" />
+          <sui-button type="submit" size="small" compact="true" color="green" :disabled="action.active">
+            <span v-if="form.workflow == 'snakemake'">Submit Snakemake Flow</span>
+            <span v-else>Submit Custom Flow</span>
+            </sui-button>
+=======
             <sui-grid-row>
               <sui-grid-column :width="8" textAlign="left">
                 <i class="icon cog blue loading" v-if="action.active" />
           <sui-button type="submit" size="small" compact="true" color="green" :disabled="action.active">Submit</sui-button>
+>>>>>>> master
           <sui-button type="reset" size="small" compact="true" basic="true" color="red">Reset</sui-button>
           </sui-grid-column>
               <sui-grid-column :width="8" textAlign="right">
@@ -103,7 +155,11 @@
           </sui-grid-row>
             <sui-grid-row>
               <sui-grid-column :width="16" textAlign="left">
+<<<<<<< HEAD
+                <sui-divider v-show="form.workflow" />
+=======
                 <sui-divider />
+>>>>>>> master
 
                 <sui-segment inverted v-show="logs">
             <p class="log" v-for="log in  execution_status" :key="log">{{log}}</p>
@@ -111,7 +167,11 @@
                 <sui-segment inverted v-show="debug">
             <div class="log">
             <p>Form: {{ form }}</p>
+<<<<<<< HEAD
+            <p>user inpts: {{ userInputs }}</p>
+=======
             <p>Workflow Files: {{ workflowFiles }}</p>
+>>>>>>> master
             <p>Backpush Files: {{ backpushFiles }}</p>
             <p>Annex Files: {{ annexFiles }}</p>
             </div>
@@ -149,8 +209,17 @@
     },
     data() {
       return {
+<<<<<<< HEAD
+        workflow: [
+          {'text': 'Snakemake', 'value': 'snakemake'}, {'text': 'Custom', 'value': 'custom'}
+        ],
         form: {
           repo: null,
+          workflow: null,
+=======
+        form: {
+          repo: null,
+>>>>>>> master
           notifications: [{
             'name': 'Slack',
             'value': false,
@@ -163,8 +232,13 @@
           commitMessage: 'gin-proc is awesome',
         },
         backpushFiles: {},
+<<<<<<< HEAD
+        userInputs: {},
+        inputCounter: 1,
+=======
         workflowFiles: {},
         workflowCounter: 1,
+>>>>>>> master
         backpushCounter: 1,
         annexFiles: {},
         annexCounter: 1,
@@ -183,11 +257,45 @@
       }
     },
     methods: {
+<<<<<<< HEAD
+      removeInput() {
+        delete this.userInputs[this.inputCounter]
+        this.inputCounter -= 1
+      },
+      removeAnnex() {
+        delete this.annexFiles[this.annexCounter]
+        this.annexCounter -= 1
+      },
+      removeBackPush() {
+        delete this.backpushFiles[this.backpushCounter]
+        this.backpushCounter -= 1
+      },
+=======
+>>>>>>> master
       dismissCompletionMessage() {
         this.action.complete = !this.action.complete
       },
       onReset() {
         this.form = {
+<<<<<<< HEAD
+          repo: null,
+          notifications: [{
+            'name': 'Slack',
+            'value': false,
+            'icon': 'slack hash'
+          }, {
+            'name': 'Email',
+            'value': false,
+            'icon': 'envelope outline'
+          }],
+          commitMessage: 'gin-proc is awesome',
+          workflow: null,
+          },
+          this.userInputs = {},
+          this.backpushFiles = {},
+          this.annexFiles = {},
+        this.inputCounter = 1,
+=======
             repo: null,
             notifications: [{
             'name': 'Slack',
@@ -202,6 +310,7 @@
           this.backpushFiles = {},
           this.annexFiles = {},
         this.workflowCounter = 1,
+>>>>>>> master
         this.backpushCounter = 1,
         this.annexCounter = 1,
           this.action = {
@@ -221,7 +330,12 @@
             data: {
               repo: this.form.repo,
               notifications: this.form.notifications,
+<<<<<<< HEAD
+              workflow: this.form.workflow,
+              userInputs: this.userInputs,
+=======
               workflowFiles: this.workflowFiles,
+>>>>>>> master
               backpushFiles: this.backpushFiles,
               annexFiles: this.annexFiles,
               commitMessage: this.form.commitMessage,
