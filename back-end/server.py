@@ -38,6 +38,8 @@ def login():
 
         if ensureKeys(token):
                 return ({'token': token}, 200)
+        else:
+                abort(400)
     else:
         abort(400)
 
