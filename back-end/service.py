@@ -1,6 +1,6 @@
 # -------------------------------#
 # Env variables assigned
-# GIN_SERVER=172.19.0.2:3000
+# GIN_SERVER=http://172.19.0.2:3000
 # GIT_SSH_COMMAND=ssh -i gin-proc/ssh/gin_id_rsa
 # -------------------------------#
 
@@ -20,7 +20,7 @@ from cryptography.hazmat.backends import default_backend
 
 # print(os.environ['GIT_SSH_COMMAND'])
 # print(os.environ['GIN_SERVER'])
-GIN_ADDR = "http://" + os.environ['GIN_SERVER']
+GIN_ADDR = os.environ['GIN_SERVER']
 PRIV_KEY = 'gin_id_rsa'
 PUB_KEY = '{}.pub'.format(PRIV_KEY)
 SSH_PATH = os.path.join(os.environ['HOME'], 'gin-proc', 'ssh')
