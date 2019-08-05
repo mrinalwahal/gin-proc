@@ -44,6 +44,9 @@ def login():
                 return ({'token': token}, 200)
         else:
                 abort(400)
+<<<<<<< HEAD
+>>>>>>> bf5e548... Attempted re-opening of drone config to avoid appending the file
+=======
 >>>>>>> bf5e548... Attempted re-opening of drone config to avoid appending the file
     else:
         abort(400)
