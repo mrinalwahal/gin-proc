@@ -259,9 +259,12 @@ def ensureConfig(
         else:
             print("CI Configuration exists in repo.")
 
-            with open(os.path.join(config_path, '.drone.yml'), 'r+') as stream:
+            config = []
+
+            with open(os.path.join(config_path, '.drone.yml'), 'r') as stream:
                 config = yaml.load(stream, Loader=yaml.FullLoader)
 
+            with open(os.path.join(config_path, '.drone.yml'), 'w') as stream:
                 config['steps'][0]['commands'] = modifyConfigFiles(
                     workflow=workflow,
                     annexFiles=annexFiles,
