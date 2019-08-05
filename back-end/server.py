@@ -35,19 +35,10 @@ def login():
         global token
         token = ensureToken(username, password)
         print('token ensured: {}'.format(token))
-<<<<<<< HEAD
-        # print('key ensured: {}'.format(ensureKeys(token, auth.username)))
-        return ({'token': token}, 200)
-=======
-
         if ensureKeys(token):
                 return ({'token': token}, 200)
         else:
                 abort(400)
-<<<<<<< HEAD
->>>>>>> bf5e548... Attempted re-opening of drone config to avoid appending the file
-=======
->>>>>>> bf5e548... Attempted re-opening of drone config to avoid appending the file
     else:
         abort(400)
 
