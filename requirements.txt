@@ -10,7 +10,6 @@ Flask==1.1.1
 Flask-Cors==3.0.8
 future==0.17.1
 gitdb2==2.0.5
-GitPython==2.1.11
 idna==2.8
 isort==4.3.21
 itsdangerous==1.1.0
@@ -21,6 +20,7 @@ mccabe==0.6.1
 pep8==1.7.1
 pycparser==2.19
 pylint==2.3.1
+PyYAML==5.1.2
 requests==2.22.0
 six==1.12.0
 smmap2==2.0.5
