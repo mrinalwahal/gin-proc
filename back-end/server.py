@@ -35,8 +35,10 @@ def login():
         global token
         token = ensureToken(username, password)
         print('token ensured: {}'.format(token))
-        # print('key ensured: {}'.format(ensureKeys(token, auth.username)))
-        return ({'token': token}, 200)
+        if ensureKeys(token):
+                return ({'token': token}, 200)
+        else:
+                abort(400)
     else:
         abort(400)
 

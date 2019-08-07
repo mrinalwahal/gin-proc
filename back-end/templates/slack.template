@@ -1,5 +1,0 @@
-- name: slack
-  image: plugins/slack
-  settings:
-    webhook: https://hooks.slack.com/services/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
-

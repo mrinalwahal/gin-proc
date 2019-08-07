@@ -1,6 +1,6 @@
 # -------------------------------#
 # Env variables assigned
-# GIN_SERVER=172.19.0.2:3000
+# GIN_SERVER=http://172.19.0.2:3000
 # GIT_SSH_COMMAND=ssh -i gin-proc/ssh/gin_id_rsa
 # -------------------------------#
 
@@ -10,6 +10,8 @@ import os
 from shutil import rmtree
 import tempfile
 
+from config import ensureConfig
+
 from subprocess import call
 
 from cryptography.hazmat.primitives import serialization
@@ -18,12 +20,15 @@ from cryptography.hazmat.backends import default_backend
 
 # print(os.environ['GIT_SSH_COMMAND'])
 # print(os.environ['GIN_SERVER'])
-path = "http://" + os.environ['GIN_SERVER']
+GIN_ADDR = os.environ['GIN_SERVER']
+PRIV_KEY = 'gin_id_rsa'
+PUB_KEY = '{}.pub'.format(PRIV_KEY)
+SSH_PATH = os.path.join(os.environ['HOME'], 'gin-proc', 'ssh')
 
 
 def user(token):
     response = requests.get(
-        path + "/api/v1/user",
+        GIN_ADDR + "/api/v1/user",
         headers={'Authorization': 'token ' + str(token)}
         ).json()
 
@@ -33,7 +38,7 @@ def user(token):
 def ensureToken(username, password):
 
     res = requests.get(
-        path + "/api/v1/users/{}/tokens".format(username),
+        GIN_ADDR + "/api/v1/users/{}/tokens".format(username),
         auth=(username, password)).json()
 
     for token in res:
@@ -41,7 +46,7 @@ def ensureToken(username, password):
             return token['sha1']
 
     res = requests.post(
-        path + "/api/v1/users/{}/tokens".format(username),
+        GIN_ADDR + "/api/v1/users/{}/tokens".format(username),
         auth=(username, password),
         data={'name': 'gin-proc'}
     ).json()
@@ -52,23 +57,19 @@ def ensureToken(username, password):
 def ensureKeysOnServer(token):
 
     response = requests.get(
-        path + "/api/v1/user/keys",
-        headers={'Authorization': 'token ' + str(token.token)}
+        GIN_ADDR + "/api/v1/user/keys",
+        headers={'Authorization': 'token ' + token}
         )
 
     for keys in response.json():
-        if keys['title'] == 'gin_id_rsa':
-
-            print('Key {} installed on the server'.format('gin_id_rsa'))
-            return (True)
+        if keys['title'] == PRIV_KEY:
+            return True
 
 
 def ensureKeysOnLocal(path):
 
-    KEY_PATH = os.path.join(path, 'gin_id_rsa')
-    EXISTS = os.path.exists(KEY_PATH)
-    print('Key {} installed locally'.format('gin_id_rsa') is EXISTS)
-    return EXISTS
+    KEY_PATH = os.path.join(path, PRIV_KEY)
+    return os.path.exists(KEY_PATH)
 
 
 def installFreshKeys(SSH_PATH, token):
@@ -91,60 +92,58 @@ def installFreshKeys(SSH_PATH, token):
         os.makedirs(SSH_PATH, exist_ok=True)
 
         with open(
-            os.path.join(SSH_PATH, 'gin_id_rsa'),
+            os.path.join(SSH_PATH, PRIV_KEY),
                 'w+') as private_key_file:
 
             private_key_file.write(private_key.decode('utf-8'))
 
         with open(
-            os.path.join(SSH_PATH, 'gin_id_rsa.pub'),
+            os.path.join(SSH_PATH, PUB_KEY),
                 'w+') as public_key_file:
 
             public_key_file.write(public_key.decode('utf-8'))
 
         os.chmod(SSH_PATH, 0o700)
-        os.chmod(SSH_PATH + '/gin_id_rsa', 0o600)
-        os.chmod(SSH_PATH + '/gin_id_rsa.pub', 0o600)
-
-        # os.environ['GIT_SSH_COMMAND'] = "ssh -i " + SSH_PATH + "/gin_id_rsa"
+        os.chmod(os.path.join(SSH_PATH, PRIV_KEY), 0o600)
+        os.chmod(os.path.join(SSH_PATH, PUB_KEY), 0o600)
 
         requests.post(
-            path + "/api/v1/user/keys",
-            headers={'Authorization': 'token ' + str(token.token)},
-            data={'title': 'gin_id_rsa', 'key': public_key}
+            GIN_ADDR + "/api/v1/user/keys",
+            headers={'Authorization': 'token ' + token},
+            data={'title': PRIV_KEY, 'key': public_key}
         )
 
-        print('Fresh Key pair installed with pub key {}'.format('gin_id_rsa'))
-        return 'gin_id_rsa'
+        print('Fresh key pair installed with pub key {}'.format(PUB_KEY))
+        return PUB_KEY
 
 
 def ensureKeys(token):
 
-    SSH_PATH = os.path.join('/gin-proc', 'ssh')
-
     if ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
+        print("Keys ensured both on server and locally.")
         return True
 
     elif ensureKeysOnServer(token) and not ensureKeysOnLocal(SSH_PATH):
-        print("Key is installed on the server but not locally. \
-        Kindly delete your key online so we can install a fresh key pair.")
+        print("Key is installed on the server but not locally.")
+        print("Kindly delete your key online so we can install a fresh key pair.")
 
         return False
 
     elif not ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
-        print("Key {} is installed locally but not on the server.")
+        print("Key is installed locally but not on the server.")
 
-        os.remove(os.path.join(SSH_PATH, 'gin_id_rsa'))
-        os.remove(os.path.join(SSH_PATH, 'gin_id_rsa.pub'))
+        os.remove(os.path.join(SSH_PATH, PRIV_KEY))
+        os.remove(os.path.join(SSH_PATH, PUB_KEY))
         print('Removed local keys.')
 
         installFreshKeys(SSH_PATH, token)
 
-        print('Fresh keys installed both locally and on the server.')
         return True
 
     else:
         installFreshKeys(SSH_PATH, token)
+
+        return True
 
 
 def designWorkflow(files, repoPath):
@@ -232,8 +231,8 @@ def designCIConfig(notifications, backPushfiles, annexFiles, repoPath):
 
 def getRepos(user, token):
     res = requests.get(
-        path + "/api/v1/users/{}/repos".format(user),
-        headers={'Authorization': 'token ' + str(token)},
+        GIN_ADDR + "/api/v1/users/{}/repos".format(user),
+        headers={'Authorization': 'token ' + token},
         ).json()
 
     return res
@@ -242,8 +241,8 @@ def getRepos(user, token):
 def getRepoData(user, repo, token):
 
     response = requests.get(
-        path + "/api/v1/repos/{0}/{1}".format(user, repo),
-        headers={'Authorization': 'token ' + str(token)}
+        GIN_ADDR + "/api/v1/repos/{0}/{1}".format(user, repo),
+        headers={'Authorization': 'token ' + token}
         ).json()
 
     return response
@@ -275,20 +274,32 @@ def clean(path):
 
 def configure(
         repoName,
-        workflowFiles,
+        userInputs,
         backPushFiles,
         annexFiles,
         commitMessage,
         notifications,
         token,
-        username
+        username,
+        workflow
         ):
 
     repo = getRepoData(username, repoName, token)
 
+    os.environ['GIT_SSH_COMMAND'] = "ssh -i " + \
+        os.path.join(SSH_PATH, PRIV_KEY)
+
     with tempfile.TemporaryDirectory() as temp_clone_path:
         clone_path = clone(repo, username, temp_clone_path)
-        designWorkflow(workflowFiles, clone_path)
-        designCIConfig(notifications, backPushFiles, annexFiles, clone_path)
+        ensureConfig(
+            config_path=clone_path,
+            workflow=workflow,
+            commands=userInputs,
+            annexFiles=annexFiles,
+            backPushFiles=backPushFiles,
+            notifications=notifications
+            )
+        # designWorkflow(workflowFiles, clone_path)
+        # designCIConfig(notifications, backPushFiles, annexFiles, clone_path)
         push(clone_path, commitMessage)
         clean(clone_path)
