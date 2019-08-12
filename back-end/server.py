@@ -1,5 +1,5 @@
 import os
-from service import configure, ensureToken, ensureKeys, getRepos, user
+from service import configure, ensureToken, ensureKeys, getRepos, user, log
 
 from flask import Flask, request, abort, render_template, jsonify, make_response
 from flask_cors import CORS, cross_origin
@@ -9,7 +9,8 @@ app.config['CORS_HEADERS'] = 'Content-Type'
 
 
 username = None
-token = None
+GIN_TOKEN = None
+DRONE_TOKEN = None
 
 
 @app.route('/')
@@ -32,11 +33,12 @@ def login():
         username = request.json['username']
         password = request.json['password']
 
-        global token
-        token = ensureToken(username, password)
-        print('token ensured: {}'.format(token))
-        if ensureKeys(token):
-                return ({'token': token}, 200)
+        global GIN_TOKEN
+        GIN_TOKEN = ensureToken(username, password)
+        log("info", 'GIN_TOKEN ensured: {}'.format(GIN_TOKEN))
+        
+        if ensureKeys(GIN_TOKEN):
+                return ({'token': GIN_TOKEN}, 200)
         else:
                 abort(400)
     else:
@@ -47,7 +49,7 @@ def login():
 @cross_origin()
 def getUser():
     if request.method == "GET":
-        return (user(token), 200)
+        return (user(GIN_TOKEN), 200)
     else:
         abort(400)
 
@@ -57,16 +59,16 @@ def execute():
 
         if request.method == "POST":
                 global username
-                global token
+                global GIN_TOKEN
                 configure(
                         repoName=request.json['repo'],
-                        notifications=request.json['notifications'],
+                        notifications=request.json['notifications'].values(),
                         commitMessage=request.json['commitMessage'],
-                        userInputs=request.json['userInputs'],
+                        userInputs=request.json['userInputs'].values(),
                         workflow=request.json['workflow'],
-                        annexFiles=request.json['annexFiles'],
-                        backPushFiles=request.json['backpushFiles'],
-                        token=token,
+                        annexFiles=request.json['annexFiles'].values(),
+                        backPushFiles=request.json['backpushFiles'].values(),
+                        token=GIN_TOKEN,
                         username=username
                 )
                 return ("Success: workflow pushed to {}".format(
@@ -82,7 +84,7 @@ def repos():
         global username
         return jsonify([
                 {'value': repo['name'], 'text': username + '/' + repo['name']}
-                for repo in getRepos(username, token)
+                for repo in getRepos(username, GIN_TOKEN)
                 ])
 
 if __name__ == '__main__':

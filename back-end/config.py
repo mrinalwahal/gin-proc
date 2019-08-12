@@ -1,6 +1,8 @@
 import os, sys
 import yaml
 
+from service import log
+
 
 def createVolume(name, path):
 
@@ -36,23 +38,31 @@ def createStep(
     return PAYLOAD
 
 
+def join_files(files, location=None):
+
+    s = ''
+    for filename in files:
+        if location:
+            s += "'{0}'/'{1}'".format(location, filename)
+        else:
+            s += "'{}'".format(filename)
+
+    return s
+
+
 def addBackPush(files, commands):
 
     if len(files) > 0:
-        input_files = ""
-        for filename in files:
-            input_files += "'{}' ".format(filename)
+        input_files = join_files(files)
 
         commands.append('TMPLOC=`mktemp -d`')
         commands.append(('mv {} "$TMPLOC"').format(input_files))
 
-        commands.append('git checkout --orphan gin-proc')
+        commands.append('git checkout gin-proc || git checkout -b gin-proc')
         commands.append('git reset --hard')
         commands.append('mkdir "$DRONE_BUILD_NUMBER"')
 
-        input_files = ''
-        for filename in files:
-            input_files += '"$TMPLOC"/"{}" '.format(filename)
+        input_files = join_files(files, "$TMPLOC")
 
         commands.append('mv {} "$DRONE_BUILD_NUMBER"/'.format(
             input_files))
@@ -60,7 +70,6 @@ def addBackPush(files, commands):
         commands.append('git add "$DRONE_BUILD_NUMBER"/')
         commands.append('git commit "$DRONE_BUILD_NUMBER"/ -m "Back-Push"')
         commands.append('git push origin gin-proc')
-        commands.append('git annex sync --content')
 
     return commands
 
@@ -68,13 +77,10 @@ def addBackPush(files, commands):
 def addAnnex(files, commands):
 
     if len(files) > 0:
-        input_files = ''
-        for filename in files:
-            input_files += '{} '.format(filename)
+        input_files = join_files(files)
 
+        commands.append('git annex init "$DRONE_REPO_NAME"-drone-annexe')
         commands.append("git annex get {}".format(input_files))
-    else:
-        commands.append("git annex sync --content")
 
     return commands
 
@@ -82,11 +88,12 @@ def addAnnex(files, commands):
 def createWorkflow(workflow, commands, user_commands=None):
 
     if workflow == 'snakemake':
-        commands.append('snakemake')
-        commands.append('echo ".snakemake/" > .gitignore')
-
+        if user_commands:
+            commands.append('cd ' + user_commands + ' && snakemake')
+        else:
+            commands.append('snakemake')
     else:
-        for command in user_commands[:]:
+        for command in user_commands:
             commands.append(command)
 
     return commands
@@ -117,7 +124,7 @@ def generateConfig(
 
     try:
 
-        print("Writing fresh configuration.")
+        log("info", "Writing fresh configuration.")
 
         data = {
             'kind': 'pipeline',
@@ -135,14 +142,17 @@ def generateConfig(
                     environment=[createEnv('SSH_KEY', 'DRONE_PRIVATE_SSH_KEY')],
                     commands=[
                         'eval $(ssh-agent -s)',
-                        'mkdir -p /root/.ssh && echo "$SSH_KEY" > /root/.ssh/id_rsa && chmod 0600 /root/.ssh/id_rsa',
+                        'mkdir -p /root/.ssh && echo "$SSH_KEY" > \
+/root/.ssh/id_rsa && chmod 0600 /root/.ssh/id_rsa',
                         'mkdir -p /etc/ssh',
-                        'echo "StrictHostKeyChecking no" >> /etc/ssh/ssh_config',
+                        'echo "StrictHostKeyChecking no" >> \
+/etc/ssh/ssh_config',
                         'ssh-add /root/.ssh/id_rsa',
+                        'ssh-keyscan -t rsa "$DRONE_GOGS_SERVER" > \
+/root/.ssh/authorized_keys'
                         'git clone "$DRONE_GIT_SSH_URL"',
                         'cd "$DRONE_REPO_NAME"/',
                         'pip3 install -r requirements.txt',
-                        'git annex init "$DRONE_REPO_NAME"-drone-annexe',
                     ]
                 ),
             ],
@@ -170,14 +180,13 @@ def generateConfig(
             data=data['steps']
         )
 
-        print("Configuration complete.")
+        log("info", "Configuration complete.")
 
         return data
 
     except Exception as e:
-        print(e)
-        print("Exiting...")
-        sys.exit()
+        log('error', e)
+        log('info', 'Make a re-attempt.')
 
 
 def modifyConfigFiles(
@@ -189,7 +198,7 @@ def modifyConfigFiles(
         ):
 
     try:
-        print("Adding user's files.")
+        log("info", "Adding user's files.")
 
         data = addAnnex(annexFiles, data)
 
@@ -200,9 +209,8 @@ def modifyConfigFiles(
         return data
 
     except Exception as e:
-        print(e)
-        print("Exiting...")
-        sys.exit()
+        log('error', e)
+        log('info', 'Make a re-attempt.')
 
 
 def addNotifications(notifications, data):
@@ -212,14 +220,16 @@ def addNotifications(notifications, data):
     for notification in notifications:
         if notification['name'] == 'Slack':
 
-            print("Adding notification: {}".format(notification['name']))
+            log("info", "Adding notification: {}".format(notification['name']))
 
             data.append(
                 createStep(
                     name='notification',
                     image='plugins/slack',
                     settings={
-                        'webhook': 'https://hooks.slack.com/services/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'
+                        'webhook': """
+https://hooks.slack.com/services/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
+"""
                     }
                 )
             )
@@ -238,7 +248,7 @@ def ensureConfig(
 
     try:
         if not os.path.exists(os.path.join(config_path, '.drone.yml')):
-            print("CI Configuration file not found in repo.")
+            log("warning", "CI Configuration file not found in repo.")
 
             with open(os.path.join(config_path, '.drone.yml'), 'w') \
                     as new_config:
@@ -257,7 +267,7 @@ def ensureConfig(
             return True
 
         else:
-            print("CI Configuration exists in repo.")
+            log("info", "CI Configuration exists in repo.")
 
             config = []
 
@@ -270,7 +280,7 @@ def ensureConfig(
                     annexFiles=annexFiles,
                     backPushFiles=backPushFiles,
                     commands=commands,
-                    data=config['steps'][0]['commands'][:8]
+                    data=config['steps'][0]['commands'][:9]
                 )
 
                 config['steps'] = addNotifications(
