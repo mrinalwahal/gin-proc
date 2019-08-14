@@ -1,7 +1,8 @@
 # -------------------------------#
 # Env variables assigned
-# GIN_SERVER=http://172.19.0.2:3000
-# DRONE_SERVER=http://172.19.0.3
+# export GIN_SERVER=http://172.19.0.2:3000
+# export DRONE_SERVER=http://172.19.0.3
+# DRONE_TOKEN=AAAAAAAAAA000000000000000XXXXXXXXX
 # GIT_SSH_COMMAND=ssh -i gin-proc/ssh/gin_id_rsa
 # -------------------------------#
 
@@ -47,8 +48,14 @@ def log(function, message):
             logging.critical(message)
         elif function == 'info':
             logging.info(message)
+        elif function == 'exception':
+            logging.exception(message)
     else:
-        print("{0}:{1}: {2}".format(function.upper(), datetime.now(), message))
+        print("{1}: [{0}] {2}".format(
+            function.upper(),
+            datetime.now(),
+            message)
+            )
 
 
 def user(token):
@@ -81,53 +88,92 @@ def ensureToken(username, password):
 
 def writeSecret(key, repo, user):
 
-    requests.post(
+    res = requests.post(
         DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(user, repo),
-        headers={'Authorization': 'Bearer ' + os.environ['DRONE_TOKEN']},
-        data={
-            'name': 'DRONE_PRIVATE_SSH_KEY',
-            'data': key,
-            'pull_request': False
+        headers={
+            'Authorization': 'Bearer {}'.format(os.environ['DRONE_TOKEN']),
+            'Content-Type': "application/json"
+            },
+        json={
+            "name": "DRONE_PRIVATE_SSH_KEY",
+            "data": key,
+            "pull_request": False
             }
     )
 
-    log('info', 'Key installed as secret in repo: {}'.format(repo))
-    return True
+    if res.status_code == 200:
+        log('info', 'Secret installation complete.')
+        return True
+    else:
+        log('info', 'Key could not be installed as secret.')
+        log('error', res.json()['message'])
+        return False
+
+
+def updateSecret(secret, data, user, repo):
+
+    res = requests.patch(
+        DRONE_ADDR + "/api/repos/{user}/{repo}/secrets/{secret}".format(
+            user=user,
+            repo=repo,
+            secret=secret),
+        headers={'Authorization': 'Bearer ' + os.environ['DRONE_TOKEN']},
+        json={
+            "data": data,
+            "pull_request": False
+        })
+
+    if res.status_code == 200:
+        log('info', 'Secret updated.')
+        return True
+    else:
+        log('error', 'Secret could not be updated.')
+        log('critical', 'Execution may not work properly from here.')
+        return False
 
 
 def ensureSecret(user, repo):
 
     repos = requests.get(
-        DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(user, repo),
-        headers={'Authorization': 'Bearer ' + os.environ['DRONE_TOKEN']}
-        )
+        DRONE_ADDR + "/api/user/repos",
+        headers={
+            'Authorization': 'Bearer {}'.format(os.environ['DRONE_TOKEN'])
+            }).json()
 
-    if repo not in [x['name'] for x in repos if x['active'] == 'true']:
+    if repo not in [x['name'] for x in repos if x['active']]:
         log('error', 'Repo {} not activated in Drone.'.format(repo))
         return False
 
     secrets = requests.get(
         DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(user, repo),
         headers={'Authorization': 'Bearer ' + os.environ['DRONE_TOKEN']}
-        )
-
-    for secret in secrets:
-        if secret['name'] == 'DRONE_PRIVATE_SSH_KEY':
-            log('info', 'Secret ensured in Drone for repo: {}'.format(repo))
-            return True
+        ).json()
 
     with open(os.path.join(SSH_PATH, PRIV_KEY), 'r') as key:
-        if writeSecret(key, repo, user):
-            return True
-        else:
-            return False
+
+        for secret in secrets:
+            if secret['name'] == 'DRONE_PRIVATE_SSH_KEY':
+                log('info', 'Secret found in activated repo: {}'.format(repo))
+
+                return updateSecret(
+                    secret=secret['name'],
+                    data=key.read(),
+                    repo=repo,
+                    user=user
+                )
+            else:
+                log('error', "Secret doesn't match. Starting update job.")
+                return(writeSecret(key.read(), repo, user))
+
+        log('error', 'Secret not found.')
+        return(writeSecret(key.read(), repo, user))
 
 
 def ensureKeysOnServer(token):
 
     response = requests.get(
         GIN_ADDR + "/api/v1/user/keys",
-        headers={'Authorization': 'token ' + token}
+        headers={'Authorization': 'token {}'.format(token)}
         )
 
     for keys in response.json():
@@ -219,22 +265,19 @@ def ensureKeys(token):
 
 
 def getRepos(user, token):
-    res = requests.get(
+
+    return requests.get(
         GIN_ADDR + "/api/v1/users/{}/repos".format(user),
         headers={'Authorization': 'token ' + token},
         ).json()
 
-    return res
-
 
 def getRepoData(user, repo, token):
 
-    response = requests.get(
+    return requests.get(
         GIN_ADDR + "/api/v1/repos/{0}/{1}".format(user, repo),
-        headers={'Authorization': 'token ' + token}
+        headers={'Authorization': 'token {}'.format(token)}
         ).json()
-
-    return response
 
 
 def clone(repo, author, path):
@@ -248,11 +291,18 @@ def clone(repo, author, path):
 
 
 def push(path, commitMessage):
-    call(['git', 'add', '.'], cwd=path)
-    call(['git', 'commit', '-m', commitMessage], cwd=path)
-    call(['git', 'push'], cwd=path)
 
-    log("info", "Updates pushed from {}".format(path))
+    try:
+        call(['git', 'add', '.'], cwd=path)
+        call(['git', 'commit', '-m', commitMessage], cwd=path)
+        call(['git', 'push'], cwd=path)
+
+        log("info", "Updates pushed from {}".format(path))
+        return True
+
+    except Exception as e:
+        log('critical', e)
+        return False
 
 
 def clean(path):
@@ -263,8 +313,7 @@ def clean(path):
         return True
 
     except Exception as e:
-        log('error', e)
-        log('critical', 'Exiting with errors.')
+        log('critical', e)
         return False
 
 
@@ -286,20 +335,30 @@ def configure(
         os.path.join(SSH_PATH, PRIV_KEY)
 
     if not ensureSecret(username, repoName):
-        log('critical', "Couldn't ensure keys in Drone. Exiting.")
+        log('critical', "Couldn't ensure secret in Drone. Exiting.")
         return False
+
+    STATUS = False
 
     with tempfile.TemporaryDirectory() as temp_clone_path:
         clone_path = clone(repo, username, temp_clone_path)
-        ensureConfig(
-            config_path=clone_path,
-            workflow=workflow,
-            commands=userInputs,
-            annexFiles=annexFiles,
-            backPushFiles=backPushFiles,
-            notifications=notifications
-            )
-        push(clone_path, commitMessage)
-        clean(clone_path)
 
-        return True
+        try:
+            if ensureConfig(
+                config_path=clone_path,
+                workflow=workflow,
+                commands=userInputs,
+                annexFiles=annexFiles,
+                backPushFiles=backPushFiles,
+                notifications=notifications
+            ):
+                STATUS = True
+
+        except Exception as e:
+            log('exception', e)
+
+        finally:
+            push(clone_path, commitMessage)
+            clean(clone_path)
+
+    return STATUS

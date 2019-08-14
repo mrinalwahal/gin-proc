@@ -13,10 +13,6 @@ GIN_TOKEN = None
 DRONE_TOKEN = None
 
 
-@app.route('/')
-def index(): return render_template('index.html')
-
-
 @app.route('/logout', methods=['POST'])
 def logMeOut():
 
@@ -35,8 +31,8 @@ def login():
 
         global GIN_TOKEN
         GIN_TOKEN = ensureToken(username, password)
-        log("info", 'GIN_TOKEN ensured: {}'.format(GIN_TOKEN))
-        
+        log("info", 'GIN token ensured.')
+
         if ensureKeys(GIN_TOKEN):
                 return ({'token': GIN_TOKEN}, 200)
         else:
@@ -49,6 +45,7 @@ def login():
 @cross_origin()
 def getUser():
     if request.method == "GET":
+        global GIN_TOKEN
         return (user(GIN_TOKEN), 200)
     else:
         abort(400)
@@ -60,19 +57,24 @@ def execute():
         if request.method == "POST":
                 global username
                 global GIN_TOKEN
-                configure(
+                if configure(
                         repoName=request.json['repo'],
-                        notifications=request.json['notifications'].values(),
+                        notifications=request.json['notifications'],
                         commitMessage=request.json['commitMessage'],
-                        userInputs=request.json['userInputs'].values(),
+                        userInputs=list(filter(None, list(
+                                request.json['userInputs'].values()))),
                         workflow=request.json['workflow'],
-                        annexFiles=request.json['annexFiles'].values(),
-                        backPushFiles=request.json['backpushFiles'].values(),
+                        annexFiles=list(filter(None, list(
+                                request.json['annexFiles'].values()))),
+                        backPushFiles=list(filter(None, list(
+                                request.json['backpushFiles'].values()))),
                         token=GIN_TOKEN,
                         username=username
-                )
-                return ("Success: workflow pushed to {}".format(
-                                request.json['repo']), 200)
+                ):
+                        return ("Success: workflow pushed to {}".format(
+                                        request.json['repo']), 200)
+                else:
+                        return ("Workflow failed.", 400)
         else:
                 return ("Wrong Method", 501)
 

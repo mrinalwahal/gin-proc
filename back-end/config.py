@@ -1,7 +1,37 @@
-import os, sys
+import os
+import sys
 import yaml
+import logging
 
-from service import log
+from datetime import datetime
+
+if 'LOG_DIR' in os.environ:
+    logging.basicConfig(
+        filename=os.environ['LOG_DIR'],
+        format="%(asctime)s:%(levelname)s:%(message)s",
+        level=logging.DEBUG
+        )
+
+
+def log(function, message):
+
+    if 'LOG_DIR' in os.environ:
+        if function == 'warning':
+            logging.warning(message)
+        elif function == 'error':
+            logging.error(message)
+        elif function == 'critical':
+            logging.critical(message)
+        elif function == 'info':
+            logging.info(message)
+        elif function == 'exception':
+            logging.exception(message)
+    else:
+        print("{1}: [{0}] {2}".format(
+            function.upper(),
+            datetime.now(),
+            message)
+            )
 
 
 def createVolume(name, path):
@@ -76,27 +106,39 @@ def addBackPush(files, commands):
 
 def addAnnex(files, commands):
 
-    if len(files) > 0:
-        input_files = join_files(files)
+    try:
+        if len(files) > 0:
+            input_files = join_files(files)
 
-        commands.append('git annex init "$DRONE_REPO_NAME"-drone-annexe')
-        commands.append("git annex get {}".format(input_files))
+            commands.append('git annex init "$DRONE_REPO_NAME"-drone-annexe')
+            commands.append("git annex get {}".format(input_files))
 
-    return commands
+    except Exception as e:
+        log('exception', e)
+
+    finally:
+        return commands
 
 
 def createWorkflow(workflow, commands, user_commands=None):
 
-    if workflow == 'snakemake':
-        if user_commands:
-            commands.append('cd ' + user_commands + ' && snakemake')
+    try:
+        if workflow == 'snakemake':
+            if user_commands:
+                commands.append('cd {}/ && snakemake'.format(
+                    user_commands[0]))
+                commands.append('cd ..')
+            else:
+                commands.append('snakemake')
         else:
-            commands.append('snakemake')
-    else:
-        for command in user_commands:
-            commands.append(command)
+            for command in user_commands:
+                commands.append(command)
 
-    return commands
+    except Exception as e:
+        log('exception', e)
+
+    finally:
+        return commands
 
 
 def integrateVolumes(volumes):
@@ -131,7 +173,7 @@ def generateConfig(
             'name': 'gin-proc',
 
             'clone': {
-                'disable': 'true'
+                'disable': True
             },
 
             'steps': [
@@ -139,7 +181,10 @@ def generateConfig(
                     name='execute',
                     image='falconshock/gin-proc:micro-test',
                     volumes=[createVolume('repo', '/repo')],
-                    environment=[createEnv('SSH_KEY', 'DRONE_PRIVATE_SSH_KEY')],
+                    environment=createEnv(
+                        'SSH_KEY',
+                        'DRONE_PRIVATE_SSH_KEY'
+                        ),
                     commands=[
                         'eval $(ssh-agent -s)',
                         'mkdir -p /root/.ssh && echo "$SSH_KEY" > \
@@ -149,7 +194,7 @@ def generateConfig(
 /etc/ssh/ssh_config',
                         'ssh-add /root/.ssh/id_rsa',
                         'ssh-keyscan -t rsa "$DRONE_GOGS_SERVER" > \
-/root/.ssh/authorized_keys'
+/root/.ssh/authorized_keys',
                         'git clone "$DRONE_GIT_SSH_URL"',
                         'cd "$DRONE_REPO_NAME"/',
                         'pip3 install -r requirements.txt',
@@ -185,8 +230,8 @@ def generateConfig(
         return data
 
     except Exception as e:
-        log('error', e)
-        log('info', 'Make a re-attempt.')
+        log('exception', e)
+        return False
 
 
 def modifyConfigFiles(
@@ -209,8 +254,7 @@ def modifyConfigFiles(
         return data
 
     except Exception as e:
-        log('error', e)
-        log('info', 'Make a re-attempt.')
+        log('exception', e)
 
 
 def addNotifications(notifications, data):
@@ -247,34 +291,43 @@ def ensureConfig(
         ):
 
     try:
-        if not os.path.exists(os.path.join(config_path, '.drone.yml')):
-            log("warning", "CI Configuration file not found in repo.")
+        __file = os.path.join(config_path, '.drone.yml')
+        if not os.path.exists(__file) or os.path.getsize(__file) <= 0:
+            log("warning", "CI Config either not found in repo or is corrupt.")
 
             with open(os.path.join(config_path, '.drone.yml'), 'w') \
                     as new_config:
-
-                yaml.dump(
-                    generateConfig(
+                
+                __generated_config = generateConfig(
                         workflow=workflow,
                         commands=commands,
                         annexFiles=annexFiles,
                         backPushFiles=backPushFiles,
                         notifications=notifications
-                        ),
-                    new_config,
-                    default_flow_style=False)
+                        )
+
+                if not __generated_config:
+                    return False
+                else:
+                    yaml.dump(
+                        __generated_config,
+                        new_config,
+                        default_flow_style=False)
 
             return True
 
         else:
-            log("info", "CI Configuration exists in repo.")
+            __file = os.path.join(config_path, '.drone.yml')
+            print(type(__file))
+
+            log("info", "Updating already existing CI Configuration.")
 
             config = []
-
-            with open(os.path.join(config_path, '.drone.yml'), 'r') as stream:
+            with open(__file, 'r') as stream:
                 config = yaml.load(stream, Loader=yaml.FullLoader)
 
-            with open(os.path.join(config_path, '.drone.yml'), 'w') as stream:
+            with open(__file, 'w') as stream:
+
                 config['steps'][0]['commands'] = modifyConfigFiles(
                     workflow=workflow,
                     annexFiles=annexFiles,
@@ -296,4 +349,4 @@ def ensureConfig(
             return True
 
     except Exception as e:
-        print(str(e))
+        log('exception', e)
