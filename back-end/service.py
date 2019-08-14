@@ -181,16 +181,36 @@ def ensureSecret(user, repo):
         return(writeSecret(key.read(), repo, user))
 
 
-def ensureKeysOnServer(token):
+def getKeysFromServer(token):
 
-    response = requests.get(
+    return requests.get(
         GIN_ADDR + "/api/v1/user/keys",
         headers={'Authorization': 'token {}'.format(token)}
-        )
+        ).json()
 
-    for keys in response.json():
-        if keys['title'] == PRIV_KEY:
+
+def ensureKeysOnServer(token):
+
+    for key in getKeysFromServer(token):
+        if key['title'] == PRIV_KEY:
             return True
+
+
+def deleteKeysOnServer(token):
+
+    for key in getKeysFromServer(token):
+        if key['title'] == PRIV_KEY:
+            response = requests.delete(
+                key['url'],
+                headers={'Authorization': 'token {}'.format(token)}
+                )
+
+            if response.status_code == 204:
+                log('warning', 'Deleted keys from server.')
+            else:
+                log('error', response.text)
+                log('critical',
+                    "You'll have to manually delete the keys from the server.")
 
 
 def ensureKeysOnLocal(path):
@@ -245,35 +265,35 @@ def installFreshKeys(SSH_PATH, token):
 
 def ensureKeys(token):
 
-    if ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
-        log("info", "Keys ensured both on server and locally.")
+    try:
+        if ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
+            log("info", "Keys ensured both on server and locally.")
+
+        elif ensureKeysOnServer(token) and not ensureKeysOnLocal(SSH_PATH):
+            log("info", "Key is installed on the server but not locally.")
+
+            deleteKeysOnServer(token)
+            installFreshKeys(SSH_PATH, token)
+
+        elif not ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
+            log("error", "Key is installed locally but not on the server.")
+            log("warning", "Deleting key from local.")
+
+            os.remove(os.path.join(SSH_PATH, PRIV_KEY))
+            os.remove(os.path.join(SSH_PATH, PUB_KEY))
+            log("warning", "Removed local keys.")
+
+            installFreshKeys(SSH_PATH, token)
+
+        else:
+            installFreshKeys(SSH_PATH, token)
+
         return True
 
-    elif ensureKeysOnServer(token) and not ensureKeysOnLocal(SSH_PATH):
-        log("info", "Key is installed on the server but not locally.")
-        log(
-            "critical",
-            "Kindly delete your key online and try again."
-            )
-
+    except Exception as e:
+        raise e
+        log('exception', e)
         return False
-
-    elif not ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
-        log("error", "Key is installed locally but not on the server.")
-        log("warning", "Deleting key from local.")
-
-        os.remove(os.path.join(SSH_PATH, PRIV_KEY))
-        os.remove(os.path.join(SSH_PATH, PUB_KEY))
-        log("info", "Removed local keys.")
-
-        installFreshKeys(SSH_PATH, token)
-
-        return True
-
-    else:
-        installFreshKeys(SSH_PATH, token)
-
-        return True
 
 
 def getRepos(user, token):

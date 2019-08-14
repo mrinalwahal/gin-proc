@@ -100,6 +100,7 @@ def addBackPush(files, commands):
         commands.append('git add "$DRONE_BUILD_NUMBER"/')
         commands.append('git commit "$DRONE_BUILD_NUMBER"/ -m "Back-Push"')
         commands.append('git push origin gin-proc')
+        commands.append('git annex copy --to=origin --all')
 
     return commands
 
