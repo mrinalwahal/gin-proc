@@ -50,17 +50,14 @@
 
             <sui-grid-row>
           <sui-grid-column :width="16" textAlign="left">
-                          <sui-form-field>
-              <label>
-                <i class="icon file alternate outline" />
-                Choose Workflow Style
-                </label>
-              <sui-dropdown placeholder="None as of now" selection :options="workflow" v-model="form.workflow" />
+            <sui-form-field required=true>
+              <label><i class="icon folder outline" />Repository</label>
+              <sui-dropdown placeholder="Choose One" search selection :options="repos" v-model="form.repo" />
             </sui-form-field>
           </sui-grid-column>
             </sui-grid-row>
 
-            <sui-grid-row v-show="form.workflow">
+            <sui-grid-row v-show="form.repo">
           <sui-grid-column :width="8" textAlign="left">
             <sui-form-field>
               <label>
@@ -94,9 +91,12 @@
             </sui-form-field>
             </sui-grid-column>
           <sui-grid-column :width="8" textAlign="left">
-            <sui-form-field required=true>
-              <label><i class="icon folder outline" />Repository</label>
-              <sui-dropdown placeholder="Choose One" search selection :options="repos" v-model="form.repo" />
+                          <sui-form-field>
+              <label>
+                <i class="icon file alternate outline" />
+                Choose Workflow Style
+                </label>
+              <sui-dropdown selection :options="workflow" v-model="form.workflow" />
             </sui-form-field>
             <sui-form-field>
               <label><i class="icon paper plane outline" />Commit Message</label>
@@ -112,12 +112,11 @@
             </sui-form-field>
             </sui-grid-column>
             </sui-grid-row>
-            <sui-grid-row v-show="form.workflow">
+            <sui-grid-row v-show="form.repo">
               <sui-grid-column :width="8" textAlign="left">
                 <i class="icon cog blue loading" v-if="action.active" />
-          <sui-button type="submit" size="small" compact="true" color="green" :disabled="action.active">
-            <span v-if="form.workflow == 'snakemake'">Submit Snakemake Flow</span>
-            <span v-else>Submit Custom Flow</span>
+          <sui-button type="submit" size="small" compact="true" color="green" :disabled="action.active" >
+            Submit
             </sui-button>
           <sui-button type="reset" size="small" compact="true" basic="true" color="red">Reset</sui-button>
           </sui-grid-column>
@@ -176,11 +175,11 @@
     data() {
       return {
         workflow: [
-          {'text': 'Snakemake', 'value': 'snakemake'}, {'text': 'Custom', 'value': 'custom'}
+          {'text': 'Custom', 'value': 'custom'}, {'text': 'Snakemake', 'value': 'snakemake'}
         ],
         form: {
           repo: null,
-          workflow: null,
+          workflow: 'custom',
           notifications: [{
             'name': 'Slack',
             'value': false,

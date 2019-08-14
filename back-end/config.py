@@ -67,16 +67,11 @@ def createStep(
     return PAYLOAD
 
 
-def join_files(files, location=None):
+def join_files(files, location=''):
 
-    s = ''
-    for filename in files:
-        if location:
-            s += '"{}"'.format(os.path.join(location, filename))
-        else:
-            s += "'{}'".format(filename)
-
-    return s
+    return ' '.join(
+        '"{}"'.format(
+            os.path.join(location, filename)) for filename in files)
 
 
 def addBackPush(files, commands):
