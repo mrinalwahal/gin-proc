@@ -73,7 +73,7 @@ def join_files(files, location=None):
     s = ''
     for filename in files:
         if location:
-            s += "'{0}'/'{1}'".format(location, filename)
+            s += '"{}"'.format(os.path.join(location, filename))
         else:
             s += "'{}'".format(filename)
 
@@ -125,9 +125,8 @@ def createWorkflow(workflow, commands, user_commands=None):
     try:
         if workflow == 'snakemake':
             if user_commands:
-                commands.append('cd {}/ && snakemake'.format(
+                commands.append('snakemake --snakefile {}/snakefile'.format(
                     user_commands[0]))
-                commands.append('cd ..')
             else:
                 commands.append('snakemake')
         else:

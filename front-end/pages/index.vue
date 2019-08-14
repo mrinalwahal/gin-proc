@@ -96,7 +96,7 @@
           <sui-grid-column :width="8" textAlign="left">
             <sui-form-field required=true>
               <label><i class="icon folder outline" />Repository</label>
-              <sui-dropdown placeholder="Choose One" search selection :options="repos" v-model="form.repo" />
+              <sui-dropdown :value="repos[0]" search selection :options="repos" v-model="form.repo" />
             </sui-form-field>
             <sui-form-field>
               <label><i class="icon paper plane outline" />Commit Message</label>

@@ -58,13 +58,12 @@ def log(function, message):
             )
 
 
-def user(token):
-    response = requests.get(
-        GIN_ADDR + "/api/v1/user",
-        headers={'Authorization': 'token ' + str(token)}
-        ).json()
+def userData(token):
 
-    return response
+    return requests.get(
+        GIN_ADDR + "/api/v1/user",
+        headers={'Authorization': 'token {}'.format(token)}
+        ).json()
 
 
 def ensureToken(username, password):
