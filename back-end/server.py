@@ -14,52 +14,31 @@ class User(object):
                 self.username = None
                 self.GIN_TOKEN = None
 
-user = User()
+        def login(self):
 
+                self.username = request.json['username']
+                password = request.json['password']
 
-@app.route('/logout', methods=['POST'])
-def logMeOut():
+                self.GIN_TOKEN = ensureToken(user.username, password)
+                log("info", 'GIN token ensured.')
 
-    if request.method == "POST":
+                if ensureKeys(self.GIN_TOKEN):
+                        return ({'token': self.GIN_TOKEN}, 200)
+                else:
+                        return ('login failed', 400)
 
-        user.username = None
-        user.GIN_TOKEN = None
-        user.DRONE_TOKEN = None
+        def logout(self):
+                user.username = None
+                user.GIN_TOKEN = None
+                user.DRONE_TOKEN = None
 
-        return ("logged out", 200)
+                return ("logged out", 200)
 
+        def details(self):
+                return (userData(self.GIN_TOKEN), 200)
 
-@app.route('/login', methods=['POST'])
-@cross_origin()
-def login():
-    if request.method == "POST":
+        def run(self, request):
 
-        user.username = request.json['username']
-        password = request.json['password']
-
-        user.GIN_TOKEN = ensureToken(user.username, password)
-        log("info", 'GIN token ensured.')
-
-        if ensureKeys(user.GIN_TOKEN):
-                return ({'token': user.GIN_TOKEN}, 200)
-        else:
-                abort(400)
-    else:
-        abort(400)
-
-
-@app.route('/user', methods=['GET'])
-def getUser():
-    if request.method == "GET":
-        return (userData(user.GIN_TOKEN), 200)
-    else:
-        abort(400)
-
-
-@app.route('/execute', methods=['POST'])
-def execute():
-
-        if request.method == "POST":
                 if configure(
                         repoName=request.json['repo'],
                         notifications=request.json['notifications'],
@@ -71,25 +50,64 @@ def execute():
                                 request.json['annexFiles'].values()))),
                         backPushFiles=list(filter(None, list(
                                 request.json['backpushFiles'].values()))),
-                        token=user.GIN_TOKEN,
-                        username=user.username
+                        token=self.GIN_TOKEN,
+                        username=self.username
                 ):
                         return ("Success: workflow pushed to {}".format(
                                         request.json['repo']), 200)
                 else:
                         return ("Workflow failed.", 400)
+
+        def repos(self):
+
+                return jsonify([
+                        {
+                        'value': repo['name'],
+                        'text': self.username + '/' + repo['name']
+                        }
+                        for repo in getRepos(self.username, self.GIN_TOKEN)
+                        ])
+
+user = User()
+
+
+@app.route('/logout', methods=['POST'])
+def logMeOut():
+    if request.method == "POST":
+            return user.logout()
+
+
+@app.route('/login', methods=['POST'])
+@cross_origin()
+def logMeIn():
+        if request.method == "POST":
+                return user.login()
         else:
-                return ("Wrong Method", 501)
+                abort(500)
+
+
+@app.route('/user', methods=['GET'])
+def getUser():
+    if request.method == "GET":
+            return user.details()
+    else:
+        abort(500)
+
+
+@app.route('/execute', methods=['POST'])
+def execute():
+
+        if request.method == "POST":
+                return user.run(request)
+        else:
+                abort(500)
 
 
 @app.route('/repos', methods=['GET'])
 @cross_origin()
 def repos():
     if request.method == "GET":
-        return jsonify([
-                {'value': repo['name'], 'text': user.username + '/' + repo['name']}
-                for repo in getRepos(user.username, user.GIN_TOKEN)
-                ])
+        return user.repos()
 
 if __name__ == '__main__':
     app.run(debug=True, port=8000, host="0.0.0.0")

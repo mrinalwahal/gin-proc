@@ -140,8 +140,21 @@ def ensureSecret(user, repo):
             }).json()
 
     if repo not in [x['name'] for x in repos if x['active']]:
-        log('error', 'Repo {} not activated in Drone.'.format(repo))
-        return False
+        
+        log('error', 'Repo {} is not activated in Drone.'.format(repo))
+
+        install_request = requests.post(
+            DRONE_ADDR + "/api/repos/{owner}/{name}".format(
+                owner=user, name=repo),
+            headers={
+                'Authorization': 'Bearer {}'.format(os.environ['DRONE_TOKEN'])
+                })
+
+        if install_request.status_code == 200:
+            log('info', "Nevermind. I've activated it for you.")
+        else:
+            log('critical', "Drone didn't respond to me. This is a crisis!")
+            return False
 
     secrets = requests.get(
         DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(user, repo),
