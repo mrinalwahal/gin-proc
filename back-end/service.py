@@ -1,6 +1,8 @@
 # -------------------------------#
 # Env variables assigned
-# GIN_SERVER=http://172.19.0.2:3000
+# export GIN_SERVER=http://172.19.0.2:3000
+# export DRONE_SERVER=http://172.19.0.3
+# DRONE_TOKEN=AAAAAAAAAA000000000000000XXXXXXXXX
 # GIT_SSH_COMMAND=ssh -i gin-proc/ssh/gin_id_rsa
 # -------------------------------#
 
@@ -8,7 +10,9 @@
 import requests
 import os
 from shutil import rmtree
+from datetime import datetime
 import tempfile
+import logging
 
 from config import ensureConfig
 
@@ -18,21 +22,48 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 
-# print(os.environ['GIT_SSH_COMMAND'])
-# print(os.environ['GIN_SERVER'])
 GIN_ADDR = os.environ['GIN_SERVER']
+DRONE_ADDR = os.environ['DRONE_SERVER']
+
 PRIV_KEY = 'gin_id_rsa'
 PUB_KEY = '{}.pub'.format(PRIV_KEY)
 SSH_PATH = os.path.join(os.environ['HOME'], 'gin-proc', 'ssh')
 
+if 'LOG_DIR' in os.environ:
+    logging.basicConfig(
+        filename=os.environ['LOG_DIR'],
+        format="%(asctime)s:%(levelname)s:%(message)s",
+        level=logging.DEBUG
+        )
 
-def user(token):
-    response = requests.get(
+
+def log(function, message):
+
+    if 'LOG_DIR' in os.environ:
+        if function == 'warning':
+            logging.warning(message)
+        elif function == 'error':
+            logging.error(message)
+        elif function == 'critical':
+            logging.critical(message)
+        elif function == 'info':
+            logging.info(message)
+        elif function == 'exception':
+            logging.exception(message)
+    else:
+        print("{1}: [{0}] {2}".format(
+            function.upper(),
+            datetime.now(),
+            message)
+            )
+
+
+def userData(token):
+
+    return requests.get(
         GIN_ADDR + "/api/v1/user",
-        headers={'Authorization': 'token ' + str(token)}
+        headers={'Authorization': 'token {}'.format(token)}
         ).json()
-
-    return response
 
 
 def ensureToken(username, password):
@@ -54,22 +85,137 @@ def ensureToken(username, password):
     return res['sha1']
 
 
+def writeSecret(key, repo, user):
+
+    res = requests.post(
+        DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(user, repo),
+        headers={
+            'Authorization': 'Bearer {}'.format(os.environ['DRONE_TOKEN']),
+            'Content-Type': "application/json"
+            },
+        json={
+            "name": "DRONE_PRIVATE_SSH_KEY",
+            "data": key,
+            "pull_request": False
+            }
+    )
+
+    if res.status_code == 200:
+        log('info', 'Secret installation complete.')
+        return True
+    else:
+        log('info', 'Key could not be installed as secret.')
+        log('error', res.json()['message'])
+        return False
+
+
+def updateSecret(secret, data, user, repo):
+
+    res = requests.patch(
+        DRONE_ADDR + "/api/repos/{user}/{repo}/secrets/{secret}".format(
+            user=user,
+            repo=repo,
+            secret=secret),
+        headers={'Authorization': 'Bearer ' + os.environ['DRONE_TOKEN']},
+        json={
+            "data": data,
+            "pull_request": False
+        })
+
+    if res.status_code == 200:
+        log('info', 'Secret updated.')
+        return True
+    else:
+        log('error', 'Secret could not be updated.')
+        log('critical', 'Execution may not work properly from here.')
+        return False
+
+
+def ensureSecret(user, repo):
+
+    repos = requests.get(
+        DRONE_ADDR + "/api/user/repos",
+        headers={
+            'Authorization': 'Bearer {}'.format(os.environ['DRONE_TOKEN'])
+            }).json()
+
+    if repo not in [x['name'] for x in repos if x['active']]:
+        
+        log('error', 'Repo {} is not activated in Drone.'.format(repo))
+
+        install_request = requests.post(
+            DRONE_ADDR + "/api/repos/{owner}/{name}".format(
+                owner=user, name=repo),
+            headers={
+                'Authorization': 'Bearer {}'.format(os.environ['DRONE_TOKEN'])
+                })
+
+        if install_request.status_code == 200:
+            log('info', "Nevermind. I've activated it for you.")
+        else:
+            log('critical', "Drone didn't respond to me. This is a crisis!")
+            return False
+
+    secrets = requests.get(
+        DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(user, repo),
+        headers={'Authorization': 'Bearer ' + os.environ['DRONE_TOKEN']}
+        ).json()
+
+    with open(os.path.join(SSH_PATH, PRIV_KEY), 'r') as key:
+
+        for secret in secrets:
+            if secret['name'] == 'DRONE_PRIVATE_SSH_KEY':
+                log('info', 'Secret found in activated repo: {}'.format(repo))
+
+                return updateSecret(
+                    secret=secret['name'],
+                    data=key.read(),
+                    repo=repo,
+                    user=user
+                )
+            else:
+                log('error', "Secret doesn't match. Starting update job.")
+                return(writeSecret(key.read(), repo, user))
+
+        log('error', 'Secret not found.')
+        return(writeSecret(key.read(), repo, user))
+
+
+def getKeysFromServer(token):
+
+    return requests.get(
+        GIN_ADDR + "/api/v1/user/keys",
+        headers={'Authorization': 'token {}'.format(token)}
+        ).json()
+
+
 def ensureKeysOnServer(token):
 
-    response = requests.get(
-        GIN_ADDR + "/api/v1/user/keys",
-        headers={'Authorization': 'token ' + token}
-        )
-
-    for keys in response.json():
-        if keys['title'] == PRIV_KEY:
+    for key in getKeysFromServer(token):
+        if key['title'] == PRIV_KEY:
             return True
+
+
+def deleteKeysOnServer(token):
+
+    for key in getKeysFromServer(token):
+        if key['title'] == PRIV_KEY:
+            response = requests.delete(
+                key['url'],
+                headers={'Authorization': 'token {}'.format(token)}
+                )
+
+            if response.status_code == 204:
+                log('warning', 'Deleted keys from server.')
+            else:
+                log('error', response.text)
+                log('critical',
+                    "You'll have to manually delete the keys from the server.")
 
 
 def ensureKeysOnLocal(path):
 
-    KEY_PATH = os.path.join(path, PRIV_KEY)
-    return os.path.exists(KEY_PATH)
+    return os.path.exists(os.path.join(path, PRIV_KEY))
 
 
 def installFreshKeys(SSH_PATH, token):
@@ -113,139 +259,56 @@ def installFreshKeys(SSH_PATH, token):
             data={'title': PRIV_KEY, 'key': public_key}
         )
 
-        print('Fresh key pair installed with pub key {}'.format(PUB_KEY))
+        log('info', 'Fresh key pair installed with pub key {}'.format(PUB_KEY))
         return PUB_KEY
 
 
 def ensureKeys(token):
 
-    if ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
-        print("Keys ensured both on server and locally.")
+    try:
+        if ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
+            log("info", "Keys ensured both on server and locally.")
+
+        elif ensureKeysOnServer(token) and not ensureKeysOnLocal(SSH_PATH):
+            log("info", "Key is installed on the server but not locally.")
+
+            deleteKeysOnServer(token)
+            installFreshKeys(SSH_PATH, token)
+
+        elif not ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
+            log("error", "Key is installed locally but not on the server.")
+            log("warning", "Deleting key from local.")
+
+            os.remove(os.path.join(SSH_PATH, PRIV_KEY))
+            os.remove(os.path.join(SSH_PATH, PUB_KEY))
+            log("warning", "Removed local keys.")
+
+            installFreshKeys(SSH_PATH, token)
+
+        else:
+            installFreshKeys(SSH_PATH, token)
+
         return True
 
-    elif ensureKeysOnServer(token) and not ensureKeysOnLocal(SSH_PATH):
-        print("Key is installed on the server but not locally.")
-        print("Kindly delete your key online so we can install a fresh key pair.")
-
+    except Exception as e:
+        log('exception', e)
         return False
-
-    elif not ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
-        print("Key is installed locally but not on the server.")
-
-        os.remove(os.path.join(SSH_PATH, PRIV_KEY))
-        os.remove(os.path.join(SSH_PATH, PUB_KEY))
-        print('Removed local keys.')
-
-        installFreshKeys(SSH_PATH, token)
-
-        return True
-
-    else:
-        installFreshKeys(SSH_PATH, token)
-
-        return True
-
-
-def designWorkflow(files, repoPath):
-    lines = []
-
-    with open(
-        os.path.join('templates', 'Snakefile.template'),
-            'r+') as template:
-
-        for line in template.readlines():
-            if '#Add-Files' not in line: 
-                lines.append(line)
-            else:
-                input_str = ""
-                for filename in files.values():
-                    input_str += "'{}',".format(filename)
-
-                input_str = input_str[:-1]
-                lines.append("SAMPLES = [{}]".format(input_str))
-
-    with open(os.path.join(repoPath, 'Snakefile'), 'w+') as config: 
-        config.writelines(lines)
-
-    print("Workflow written at " + repoPath + "/Snakefile")
-
-
-def addNotifications(lines, notifications):
-
-    for notif in notifications:
-        if notif['value']:
-            if notif['name'] == "slack":
-                print("notification detected: {}".format("slack"))
-                with open(
-                    os.path.join('templates', 'slack.template'),
-                        'r+') as slack:
-
-                        for notif_lines in slack:
-                            lines.append(notif_lines)
-
-
-def designCIConfig(notifications, backPushfiles, annexFiles, repoPath):
-    lines = []
-
-    with open(
-        os.path.join('templates', 'drone.template'),
-            'r+') as template:
-
-        for line in template.readlines():
-
-            if '#add-backpush-files' in line:
-                if len(backPushfiles) > 0:
-                    input_files = ""
-                    for filename in backPushfiles.values():
-                        input_files += "'{}' ".format(filename)
-                    lines.append(('    - mv {} "$TMPLOC"').format(input_files))
-
-            elif '#copy-backpush-files' in line:
-                if len(backPushfiles) > 0:
-                    input_files = ''
-                    for filename in backPushfiles.values():
-                        input_files += '"$TMPLOC"/"{}" '.format(filename)
-                    lines.append('    - mv {} "$DRONE_BUILD_NUMBER"/'.format(
-                        input_files))
-
-            elif '#get-annexed-files' in line:
-                if len(annexFiles.values()) == 0:
-                    lines.append("    - git annex sync --content")
-                else:
-                    input_files = ""
-                    for filename in annexFiles.values():
-                        input_files += "'{}' ".format(filename)
-                    lines.append('    - git annex get {}'.format(input_files))
-
-            elif '#add-notifications' in line:
-                addNotifications(lines, notifications)
-
-            else:
-                lines.append(line)
-
-    with open(repoPath + '/.drone.yml', 'w+') as config:
-        config.writelines(lines)
-
-    print("Configuration written at " + repoPath + "/.drone.yml")
 
 
 def getRepos(user, token):
-    res = requests.get(
+
+    return requests.get(
         GIN_ADDR + "/api/v1/users/{}/repos".format(user),
         headers={'Authorization': 'token ' + token},
         ).json()
 
-    return res
-
 
 def getRepoData(user, repo, token):
 
-    response = requests.get(
+    return requests.get(
         GIN_ADDR + "/api/v1/repos/{0}/{1}".format(user, repo),
-        headers={'Authorization': 'token ' + token}
+        headers={'Authorization': 'token {}'.format(token)}
         ).json()
-
-    return response
 
 
 def clone(repo, author, path):
@@ -254,22 +317,35 @@ def clone(repo, author, path):
 
     call(['git', 'clone', '--depth=1', repo['clone_url'], clone_path])
 
-    print("Repo cloned at " + clone_path)
+    log("info", "Repo cloned at " + clone_path)
     return clone_path
 
 
 def push(path, commitMessage):
-    call(['git', 'add', '.'], cwd=path)
-    call(['git', 'commit', '-m', commitMessage], cwd=path)
-    call(['git', 'push'], cwd=path)
 
-    print("Updates pushed from {}".format(path))
+    try:
+        call(['git', 'add', '.'], cwd=path)
+        call(['git', 'commit', '-m', commitMessage], cwd=path)
+        call(['git', 'push'], cwd=path)
+
+        log("info", "Updates pushed from {}".format(path))
+        return True
+
+    except Exception as e:
+        log('critical', e)
+        return False
 
 
 def clean(path):
-    rmtree(path)
 
-    print("Repo cleaned from {}".format(path))
+    try:
+        rmtree(path)
+        log("info", "Repo cleaned from {}".format(path))
+        return True
+
+    except Exception as e:
+        log('critical', e)
+        return False
 
 
 def configure(
@@ -289,17 +365,31 @@ def configure(
     os.environ['GIT_SSH_COMMAND'] = "ssh -i " + \
         os.path.join(SSH_PATH, PRIV_KEY)
 
+    if not ensureSecret(username, repoName):
+        log('critical', "Couldn't ensure secret in Drone. Exiting.")
+        return False
+
+    STATUS = False
+
     with tempfile.TemporaryDirectory() as temp_clone_path:
         clone_path = clone(repo, username, temp_clone_path)
-        ensureConfig(
-            config_path=clone_path,
-            workflow=workflow,
-            commands=userInputs,
-            annexFiles=annexFiles,
-            backPushFiles=backPushFiles,
-            notifications=notifications
-            )
-        # designWorkflow(workflowFiles, clone_path)
-        # designCIConfig(notifications, backPushFiles, annexFiles, clone_path)
-        push(clone_path, commitMessage)
-        clean(clone_path)
+
+        try:
+            if ensureConfig(
+                config_path=clone_path,
+                workflow=workflow,
+                commands=userInputs,
+                annexFiles=annexFiles,
+                backPushFiles=backPushFiles,
+                notifications=notifications
+            ):
+                STATUS = True
+
+        except Exception as e:
+            log('exception', e)
+
+        finally:
+            push(clone_path, commitMessage)
+            clean(clone_path)
+
+    return STATUS

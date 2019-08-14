@@ -14,11 +14,20 @@
 
       <transition>
      <sui-message
-     v-if="action.complete"
-      color="info"
-      content="Check your Drone service for updates."
+     v-if="success_message.visible"
+      info
+      :content="success_message.content"
       dismissable
-      @dismiss="dismissCompletionMessage"
+      @dismiss="dismissMessage('success')"
+      />
+      </transition>
+      <transition>
+     <sui-message
+     v-if="error_message.visible"
+      error
+      :content="error_message.content"
+      dismissable
+      @dismiss="dismissMessage('error')"
       />
       </transition>
       <!--
@@ -41,19 +50,16 @@
 
             <sui-grid-row>
           <sui-grid-column :width="16" textAlign="left">
-                          <sui-form-field>
-              <label>
-                <i class="icon file alternate outline" />
-                Choose Workflow Style
-                </label>
-              <sui-dropdown placeholder="None as of now" selection :options="workflow" v-model="form.workflow" />
+            <sui-form-field required=true>
+              <label><i class="icon folder outline" />Repository</label>
+              <sui-dropdown placeholder="Choose One" search selection :options="repos" v-model="form.repo" />
             </sui-form-field>
           </sui-grid-column>
             </sui-grid-row>
 
-            <sui-grid-row v-show="form.workflow">
+            <sui-grid-row v-show="form.repo">
           <sui-grid-column :width="8" textAlign="left">
-            <sui-form-field required>
+            <sui-form-field>
               <label>
                 <i class="icon file alternate outline" />
                 <span v-if="form.workflow =='custom'">Commands</span>
@@ -62,7 +68,7 @@
                   <i class="icon help circle" /> </a>
                 <i v-if="form.workflow =='custom'" class="icon plus" style="float:right" v-on:click="inputCounter += 1" />
                 <i v-if="form.workflow =='custom' && inputCounter > 1" class="icon minus" style="float:right" v-on:click="removeInput" /></label>
-              <sui-input v-for="x in inputCounter" :key="x" v-model="userInputs[x]" required />
+              <sui-input v-for="x in inputCounter" :key="x" v-model="userInputs[x]" />
             </sui-form-field>
             <sui-form-field>
               <label>
@@ -85,9 +91,12 @@
             </sui-form-field>
             </sui-grid-column>
           <sui-grid-column :width="8" textAlign="left">
-            <sui-form-field required>
-              <label><i class="icon folder outline" />Repository</label>
-              <sui-dropdown placeholder="Choose One" required selection :options="repos" v-model="form.repo" />
+                          <sui-form-field>
+              <label>
+                <i class="icon file alternate outline" />
+                Choose Workflow Style
+                </label>
+              <sui-dropdown selection :options="workflow" v-model="form.workflow" />
             </sui-form-field>
             <sui-form-field>
               <label><i class="icon paper plane outline" />Commit Message</label>
@@ -103,12 +112,11 @@
             </sui-form-field>
             </sui-grid-column>
             </sui-grid-row>
-            <sui-grid-row v-show="form.workflow">
+            <sui-grid-row v-show="form.repo">
               <sui-grid-column :width="8" textAlign="left">
                 <i class="icon cog blue loading" v-if="action.active" />
-          <sui-button type="submit" size="small" compact="true" color="green" :disabled="action.active">
-            <span v-if="form.workflow == 'snakemake'">Submit Snakemake Flow</span>
-            <span v-else>Submit Custom Flow</span>
+          <sui-button type="submit" size="small" compact="true" color="green" :disabled="action.active" >
+            Submit
             </sui-button>
           <sui-button type="reset" size="small" compact="true" basic="true" color="red">Reset</sui-button>
           </sui-grid-column>
@@ -167,11 +175,11 @@
     data() {
       return {
         workflow: [
-          {'text': 'Snakemake', 'value': 'snakemake'}, {'text': 'Custom', 'value': 'custom'}
+          {'text': 'Custom', 'value': 'custom'}, {'text': 'Snakemake', 'value': 'snakemake'}
         ],
         form: {
           repo: null,
-          workflow: null,
+          workflow: 'custom',
           notifications: [{
             'name': 'Slack',
             'value': false,
@@ -182,6 +190,14 @@
             'icon': 'envelope outline'
           }],
           commitMessage: 'gin-proc is awesome',
+        },
+        success_message: {
+          visible: false,
+          content: "Check your Drone service for updates."
+        },
+        error_message: {
+          visible: false,
+          content: "Workflow failed. Kindly check logs for reports."
         },
         backpushFiles: {},
         userInputs: {},
@@ -200,6 +216,7 @@
           variant: 'primary',
           progress: 0,
           complete: false,
+          content: "Check your Drone service for updates."
         }
       }
     },
@@ -216,8 +233,9 @@
         delete this.backpushFiles[this.backpushCounter]
         this.backpushCounter -= 1
       },
-      dismissCompletionMessage() {
-        this.action.complete = !this.action.complete
+      dismissMessage(type) {
+        if (type == "success") {this.success_message.visible = !this.success_message.visible}
+        else {this.error_message.visible = !this.error_message.visible}
       },
       onReset() {
         this.form = {
@@ -270,15 +288,17 @@
             this.execution_status.push("Designing workflow..."),
           )
           .then((response) => {
-            if (response.status == 500) {
-              this.execution_status.push("Failed. Execution aborted."),
-                this.action.text = "Failed", this.action.active = false, this.action.btn_state = true, this.action
-                .variant = 'danger'
-            } else if (response.status == 200) {
+            if (response.status == 200) {
               this.execution_status.push(response.data),
                 this.action.text = "Access Drone", this.action.active = false, this
                 .action.variant = 'info', this.action.progress = 100,
-                this.action.complete = true
+                this.action.complete = true, this.success_message.visible = true
+            }
+              else {
+              this.error_message.visible = true, this.execution_status.push(response.data),
+                this.action.text = "Failed", this.action.active = false, this.action.progress = 100,
+                this.action.complete = true, this.action.btn_state = true,
+                this.action.content = "Workflow Failed. Kindly check the logs."
             }
           })
       },
