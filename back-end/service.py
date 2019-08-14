@@ -291,7 +291,6 @@ def ensureKeys(token):
         return True
 
     except Exception as e:
-        raise e
         log('exception', e)
         return False
 
