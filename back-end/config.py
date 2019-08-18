@@ -322,7 +322,6 @@ def ensureConfig(
 
             with open(os.path.join(config_path, '.drone.yml'), 'w') \
                     as new_config:
-
                 __generated_config = generateConfig(
                         workflow=workflow,
                         commands=commands,

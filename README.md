@@ -97,7 +97,7 @@ Save the keys as `gin_id_rsa.pub` and `gin_id_rsa`.
 **Or** if you do not have a **gin** service container running already, then start a new one with the following command.
 To keep things easier, we'll attach a static IP `172.19.0.2` to this container so that we don't have to inspect the docker network for changes in IP later.
 
-`docker run --name=gin --net <network-name> --ip 172.19.0.2 -p 10022:22 -p 3000:3000 -v /var/gogs:/data gnode/gin-web`
+`docker run --name=gin --net <network-name> --ip 172.19.0.2 -p 10022:22 -p 3000:3000 -v /var/gogs:/data gnode/gin-web:rebased`
 
 If you already had a gin container running, then run the following command to check and copy IP address of **gin** service container.
 
@@ -132,7 +132,11 @@ Now go to your terminal and copy your `gin_id_rsa.pub` key and install it in gin
 **[5]** Create **drone** CI/CD service container.
 
 ```
+<<<<<<< HEAD
 docker run --volume=/var/run/docker.sock:/var/run/docker.sock --env=DRONE_GIT_ALWAYS_AUTH=false  --env=DRONE_GOGS_SERVER=http://172.19.0.2:3000 --env=DRONE_RUNNER_CAPACITY=2 --env=DRONE_RUNNER_NETWORKS=gin --env=DRONE_SERVER_HOST=172.19.0.3 --env=DRONE_SERVER_PROTO=http --env=DRONE_TLS_AUTOCERT=false --publish=80:80 --publish=443:443 --publish=2224:22 --restart=always  --detach=true --net gin --name=drone drone/drone:latest
+=======
+    docker run --volume=/var/run/docker.sock:/var/run/docker.sock --volume=/gin-proc/repo:/repo --volume=/gin-proc/cache:/cache --env=DRONE_GIT_ALWAYS_AUTH=false --env=DRONE_GOGS_SERVER=http://<GIN_SERVER_IP>:3000  --env=DRONE_RUNNER_CAPACITY=2 --env=DRONE_RUNNER_NETWORKS=gin --env=DRONE_SERVER_HOST=172.19.0.3  --env=DRONE_SERVER_PROTO=http --env=DRONE_TLS_AUTOCERT=false --env=DRONE_USER_CREATE=username:<GIN_USERNAME>,admin:true --publish=80:80 --publish=443:443 --publish=2224:22 --restart=always --detach=true --net gin --name=drone drone/drone:latest
+>>>>>>> 24d88e2e250480cc18f94c3a7024a2af3200a06f
  ```
 Access drone at `172.19.0.3:80` in your browser. You will get a list of your repositories. Click on **ACTIVATE** for which your want to enable **gin-proc** microservice.
 
@@ -142,6 +146,21 @@ On your Drone dashboard, access the settings for your repository.
 
 Now Add a new secret with the name `**DRONE_PRIVATE_SSH_KEY**`. And the value of this secret should be the private key `gin_id_rsa` contents. For that, simply copy paste the key content from your terminal.
 
+<a name="run-proc"></a>
+## Run gin-proc microservice
+
+Make sure your keys are installed with the GIN container. Micro-service, for now, skips ensuring/installing new keys on the GIN server (Its still in testing).
+
+From project's root...
+```export GIN_SERVER=<GIN_IP>:<GIN_PORT>```
+
+```cd back-end && python server.py```
+
+On a new console, go back to project's root and..
+```cd front-end && npm run dev```
+
+Log in at your front-end app's SERVER IP displayed in console on endpoint `/login`. 
+Only log in with your GIN credentials.
 
 <br>
 
