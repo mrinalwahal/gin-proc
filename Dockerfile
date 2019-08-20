@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-FROM ubuntu
-RUN apt-get update && apt-get install git-annex python3.6 python3-pip -y
-=======
 FROM python:3
 
 RUN mkdir -p /app/backend
@@ -29,4 +25,3 @@ WORKDIR /app
 
 COPY docker/entrypoint.sh /app/
 ENTRYPOINT ["/app/entrypoint.sh"]
->>>>>>> 24d88e2e250480cc18f94c3a7024a2af3200a06f
