@@ -11,10 +11,9 @@ import os
 from shutil import rmtree
 from datetime import datetime
 import tempfile
-import logging
 
 from config import ensureConfig
-
+from logger import log
 from subprocess import call
 
 from cryptography.hazmat.primitives import serialization
@@ -27,69 +26,6 @@ DRONE_ADDR = os.environ['DRONE_SERVER']
 PRIV_KEY = 'gin_id_rsa'
 PUB_KEY = '{}.pub'.format(PRIV_KEY)
 SSH_PATH = os.path.join(os.environ['HOME'], 'gin-proc', 'ssh')
-
-
-def level():
-
-    if 'DEBUG' in os.environ and os.environ['DEBUG']:
-            return logging.DEBUG
-    else:
-            return logging.INFO
-
-
-FORMAT = "%(asctime)s:%(levelname)s:%(message)s"
-
-if 'LOG_DIR' in os.environ:
-
-    LOG = True
-    FILENAME = os.environ['LOG_DIR']
-
-    logging.basicConfig(
-        filename=FILENAME,
-        format=FORMAT,
-        level=level()
-        )
-
-else:
-    LOG = False
-
-    logging.basicConfig(
-        format=FORMAT,
-        level=level()
-        )
-
-
-def log(function, message):
-
-    if LOG:
-        if function == 'warning':
-            logging.warning(message)
-        elif function == 'debug':
-            logging.debug(message)
-        elif function == 'error':
-            logging.error(message)
-        elif function == 'critical':
-            logging.critical(message)
-        elif function == 'info':
-            logging.info(message)
-        elif function == 'exception':
-            logging.exception(message)
-    else:
-
-        if function == "debug":
-            if 'DEBUG' in os.environ and os.environ['DEBUG']:
-
-                print("{1}: [{0}] {2}".format(
-                    function.upper(),
-                    datetime.now(),
-                    message)
-                    )
-        else:
-            print("{1}: [{0}] {2}".format(
-                function.upper(),
-                datetime.now(),
-                message)
-                )
 
 
 def userData(token):
@@ -174,49 +110,32 @@ def ensureSecrets(user):
             }).json()
 
     for repo in repos:
-        if not repo['active']:
+        if repo['active']:
 
-            log('debug', 'Repo {} is not activated in Drone.'.format(repo))
+            secrets = requests.get(
+                DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(user, repo['name']),
+                headers={'Authorization': 'Bearer {}'.format(
+                    os.environ['DRONE_TOKEN'])}
+                ).json()
 
-            install_request = requests.post(
-                DRONE_ADDR + "/api/repos/{owner}/{name}".format(
-                    owner=user, name=repo),
-                headers={
-                    'Authorization': 'Bearer {}'.format(
-                        os.environ['DRONE_TOKEN'])
-                    })
+            with open(os.path.join(SSH_PATH, PRIV_KEY), 'r') as key:
 
-            if install_request.status_code == 200:
-                log('info', "Activated `{}`".format(repo))
-            else:
-                log('critical',
-                    "Drone didn't respond for activation of `{}`".format(
-                        repo))
+                for secret in secrets:
+                    if secret['name'] == 'DRONE_PRIVATE_SSH_KEY':
+                        log('debug', 'Secret found in repo `{}`'.format(
+                            repo['name']))
 
-        secrets = requests.get(
-            DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(user, repo['name']),
-            headers={'Authorization': 'Bearer {}'.format(
-                os.environ['DRONE_TOKEN'])}
-            ).json()
+                        return updateSecret(
+                            secret=secret['name'],
+                            data=key.read(),
+                            repo=repo['name'],
+                            user=user
+                        )
+                    else:
+                        return(writeSecret(key.read(), repo['name'], user))
 
-        with open(os.path.join(SSH_PATH, PRIV_KEY), 'r') as key:
-
-            for secret in secrets:
-                if secret['name'] == 'DRONE_PRIVATE_SSH_KEY':
-                    log('debug', 'Secret found in repo `{}`'.format(
-                        repo['name']))
-
-                    return updateSecret(
-                        secret=secret['name'],
-                        data=key.read(),
-                        repo=repo['name'],
-                        user=user
-                    )
-                else:
-                    return(writeSecret(key.read(), repo['name'], user))
-
-            log('debug', 'Secret not found in `{}`'.format(repo['name']))
-            return(writeSecret(key.read(), repo['name'], user))
+                log('debug', 'Secret not found in `{}`'.format(repo['name']))
+                return(writeSecret(key.read(), repo['name'], user))
 
 
 def getKeysFromServer(token):
@@ -413,7 +332,7 @@ def configure(
             if ensureConfig(
                 config_path=clone_path,
                 workflow=workflow,
-                commands=userInputs,
+                userInputs=userInputs,
                 annexFiles=annexFiles,
                 backPushFiles=backPushFiles,
                 notifications=notifications

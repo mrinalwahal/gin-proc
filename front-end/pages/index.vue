@@ -193,7 +193,7 @@
         },
         success_message: {
           visible: false,
-          content: "Check your Drone service for updates."
+          content: "Complete! Check your Drone service for updates."
         },
         error_message: {
           visible: false,
@@ -216,7 +216,7 @@
           variant: 'primary',
           progress: 0,
           complete: false,
-          content: "Check your Drone service for updates."
+          content: "Complete! Check your Drone service for updates."
         }
       }
     },
@@ -250,7 +250,7 @@
             'icon': 'envelope outline'
           }],
           commitMessage: 'gin-proc is awesome',
-          workflow: null,
+          workflow: 'custom',
           },
           this.userInputs = {},
           this.backpushFiles = {},
@@ -295,7 +295,7 @@
                 this.action.complete = true, this.success_message.visible = true
             }
               else {
-              this.error_message.visible = true, this.execution_status.push(response.data),
+              this.error_message.visible = true, this.execution_status.push(response),
                 this.action.text = "Failed", this.action.active = false, this.action.progress = 100,
                 this.action.complete = true, this.action.btn_state = true,
                 this.action.content = "Workflow Failed. Kindly check the logs."

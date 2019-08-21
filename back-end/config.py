@@ -1,71 +1,8 @@
 import os
 import yaml
-import logging
-
+from logger import log
+import traceback
 from datetime import datetime
-
-
-def level():
-
-    if 'DEBUG' in os.environ and os.environ['DEBUG']:
-            return logging.DEBUG
-    else:
-            return logging.INFO
-
-
-FORMAT = "%(asctime)s:%(levelname)s:%(message)s"
-
-if 'LOG_DIR' in os.environ:
-
-    LOG = True
-    FILENAME = os.environ['LOG_DIR']
-
-    logging.basicConfig(
-        filename=FILENAME,
-        format=FORMAT,
-        level=level()
-        )
-
-else:
-    LOG = False
-
-    logging.basicConfig(
-        format=FORMAT,
-        level=level()
-        )
-
-
-def log(function, message):
-
-    if LOG:
-        if function == 'warning':
-            logging.warning(message)
-        elif function == 'debug':
-            logging.debug(message)
-        elif function == 'error':
-            logging.error(message)
-        elif function == 'critical':
-            logging.critical(message)
-        elif function == 'info':
-            logging.info(message)
-        elif function == 'exception':
-            logging.exception(message)
-    else:
-
-        if function == "debug":
-            if 'DEBUG' in os.environ and os.environ['DEBUG']:
-
-                print("{1}: [{0}] {2}".format(
-                    function.upper(),
-                    datetime.now(),
-                    message)
-                    )
-        else:
-            print("{1}: [{0}] {2}".format(
-                function.upper(),
-                datetime.now(),
-                message)
-                )
 
 
 def createVolume(name, path):
@@ -212,7 +149,7 @@ def generateConfig(
                     volumes=[createVolume('cache', '/cache')],
                     settings={
                         'restore': True,
-                        'mount': '/drone/src/.snakemake'
+                        'mount': '/drone/src'
                         },
                 ),
                 createStep(
@@ -244,7 +181,7 @@ def generateConfig(
                     volumes=[createVolume('cache', '/cache')],
                     settings={
                         'rebuild': True,
-                        'mount': '/drone/src/.snakemake'
+                        'mount': '/drone/src'
                         },
                 ),
             ],
@@ -259,12 +196,12 @@ def generateConfig(
             }
         }
 
-        data['steps'][0]['commands'] = modifyConfigFiles(
+        data['steps'][1]['commands'] = modifyConfigFiles(
             workflow=workflow,
             annexFiles=annexFiles,
             backPushFiles=backPushFiles,
             commands=commands,
-            data=data['steps'][0]['commands']
+            data=data['steps'][1]['commands']
         )
 
         data['steps'] = addNotifications(
@@ -302,11 +239,15 @@ def modifyConfigFiles(
 
     except Exception as e:
         log('exception', e)
-
+        
 
 def addNotifications(notifications, data):
 
     notifications = [n for n in notifications if n['value']]
+
+    for step in data:
+        if step['name'] == "notification":
+            del data[data.index(step)]
 
     for notification in notifications:
         if notification['name'] == 'Slack':
@@ -318,9 +259,7 @@ def addNotifications(notifications, data):
                     name='notification',
                     image='plugins/slack',
                     settings={
-                        'webhook': """
-https://hooks.slack.com/services/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
-"""
+                        'webhook': "https://hooks.slack.com/services/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"
                     }
                 )
             )
@@ -330,7 +269,7 @@ https://hooks.slack.com/services/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
 
 def ensureConfig(
         config_path,
-        commands,
+        userInputs,
         workflow='snakemake',
         annexFiles=[],
         backPushFiles=[],
@@ -339,7 +278,6 @@ def ensureConfig(
 
     try:
 
-        
         __file = os.path.join(config_path, '.drone.yml')
         if not os.path.exists(__file) or os.path.getsize(__file) <= 0:
             log("warning", "CI Config either not found in repo or is corrupt.")
@@ -348,7 +286,7 @@ def ensureConfig(
                     as new_config:
                 __generated_config = generateConfig(
                         workflow=workflow,
-                        commands=commands,
+                        commands=userInputs,
                         annexFiles=annexFiles,
                         backPushFiles=backPushFiles,
                         notifications=notifications
@@ -366,7 +304,6 @@ def ensureConfig(
 
         else:
             __file = os.path.join(config_path, '.drone.yml')
-            print(type(__file))
 
             log("debug", "Updating already existing CI Configuration.")
 
@@ -376,12 +313,12 @@ def ensureConfig(
 
             with open(__file, 'w') as stream:
 
-                config['steps'][0]['commands'] = modifyConfigFiles(
+                config['steps'][1]['commands'] = modifyConfigFiles(
                     workflow=workflow,
                     annexFiles=annexFiles,
                     backPushFiles=backPushFiles,
-                    commands=commands,
-                    data=config['steps'][0]['commands'][:9]
+                    commands=userInputs,
+                    data=config['steps'][1]['commands'][:9]
                 )
 
                 config['steps'] = addNotifications(
