@@ -1,36 +1,6 @@
 import os
 import yaml
-import logging
-
-from datetime import datetime
-
-if 'LOG_DIR' in os.environ:
-    logging.basicConfig(
-        filename=os.environ['LOG_DIR'],
-        format="%(asctime)s:%(levelname)s:%(message)s",
-        level=logging.DEBUG
-        )
-
-
-def log(function, message):
-
-    if 'LOG_DIR' in os.environ:
-        if function == 'warning':
-            logging.warning(message)
-        elif function == 'error':
-            logging.error(message)
-        elif function == 'critical':
-            logging.critical(message)
-        elif function == 'info':
-            logging.info(message)
-        elif function == 'exception':
-            logging.exception(message)
-    else:
-        print("{1}: [{0}] {2}".format(
-            function.upper(),
-            datetime.now(),
-            message)
-            )
+from logger import log
 
 
 def createVolume(name, path):
@@ -91,7 +61,8 @@ def addBackPush(files, commands):
         commands.append('mv {} "$DRONE_BUILD_NUMBER"/'.format(
             input_files))
 
-        commands.append('git add "$DRONE_BUILD_NUMBER"/')
+        commands.append('git annex add -c annex.largefiles="largerthan=10M" \
+            "$DRONE_BUILD_NUMBER"/')
         commands.append('git commit "$DRONE_BUILD_NUMBER"/ -m "Back-Push"')
         commands.append('git push origin gin-proc')
         commands.append('git annex copy --to=origin --all')
@@ -160,7 +131,7 @@ def generateConfig(
 
     try:
 
-        log("info", "Writing fresh configuration.")
+        log("debug", "Writing fresh configuration.")
 
         data = {
             'kind': 'pipeline',
@@ -171,6 +142,15 @@ def generateConfig(
             },
 
             'steps': [
+                createStep(
+                    name='restore-cache',
+                    image='drillster/drone-volume-cache',
+                    volumes=[createVolume('cache', '/cache')],
+                    settings={
+                        'restore': True,
+                        'mount': '/drone/src'
+                        },
+                ),
                 createStep(
                     name='execute',
                     image='falconshock/gin-proc:micro-test',
@@ -187,12 +167,24 @@ def generateConfig(
                         'echo "StrictHostKeyChecking no" >> \
 /etc/ssh/ssh_config',
                         'ssh-add /root/.ssh/id_rsa',
+                        'git config --global user.name "gin-proc"',
+                        'git config --global user.email "gin-proc@local"',
                         'ssh-keyscan -t rsa "$DRONE_GOGS_SERVER" > \
 /root/.ssh/authorized_keys',
-                        'git clone "$DRONE_GIT_SSH_URL"',
-                        'cd "$DRONE_REPO_NAME"/',
-                        'pip3 install -r requirements.txt',
+                        'if [ -d "$DRONE_REPO_NAME" ]; then cd "$DRONE_REPO_NAME"/ \
+&& git fetch --all && git checkout "$DRONE_COMMIT"; \
+else git clone "$DRONE_GIT_SSH_URL" \
+&& cd "$DRONE_REPO_NAME"/ && pip3 install -r requirements.txt; fi',
                     ]
+                ),
+                createStep(
+                    name='rebuild-cache',
+                    image='drillster/drone-volume-cache',
+                    volumes=[createVolume('cache', '/cache')],
+                    settings={
+                        'rebuild': True,
+                        'mount': '/drone/src'
+                        },
                 ),
             ],
             'volumes': integrateVolumes([
@@ -206,12 +198,12 @@ def generateConfig(
             }
         }
 
-        data['steps'][0]['commands'] = modifyConfigFiles(
+        data['steps'][1]['commands'] = modifyConfigFiles(
             workflow=workflow,
             annexFiles=annexFiles,
             backPushFiles=backPushFiles,
             commands=commands,
-            data=data['steps'][0]['commands']
+            data=data['steps'][1]['commands']
         )
 
         data['steps'] = addNotifications(
@@ -219,7 +211,7 @@ def generateConfig(
             data=data['steps']
         )
 
-        log("info", "Configuration complete.")
+        log("debug", "Configuration complete.")
 
         return data
 
@@ -237,7 +229,7 @@ def modifyConfigFiles(
         ):
 
     try:
-        log("info", "Adding user's files.")
+        log("debug", "Adding user's files.")
 
         data = addAnnex(annexFiles, data)
 
@@ -255,6 +247,10 @@ def addNotifications(notifications, data):
 
     notifications = [n for n in notifications if n['value']]
 
+    for step in data:
+        if step['name'] == "notification":
+            del data[data.index(step)]
+
     for notification in notifications:
         if notification['name'] == 'Slack':
 
@@ -265,9 +261,7 @@ def addNotifications(notifications, data):
                     name='notification',
                     image='plugins/slack',
                     settings={
-                        'webhook': """
-https://hooks.slack.com/services/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
-"""
+                        'webhook': "https://hooks.slack.com/services/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"
                     }
                 )
             )
@@ -277,7 +271,7 @@ https://hooks.slack.com/services/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
 
 def ensureConfig(
         config_path,
-        commands,
+        userInputs,
         workflow='snakemake',
         annexFiles=[],
         backPushFiles=[],
@@ -285,16 +279,16 @@ def ensureConfig(
         ):
 
     try:
+
         __file = os.path.join(config_path, '.drone.yml')
         if not os.path.exists(__file) or os.path.getsize(__file) <= 0:
             log("warning", "CI Config either not found in repo or is corrupt.")
 
             with open(os.path.join(config_path, '.drone.yml'), 'w') \
                     as new_config:
-                
                 __generated_config = generateConfig(
                         workflow=workflow,
-                        commands=commands,
+                        commands=userInputs,
                         annexFiles=annexFiles,
                         backPushFiles=backPushFiles,
                         notifications=notifications
@@ -312,9 +306,8 @@ def ensureConfig(
 
         else:
             __file = os.path.join(config_path, '.drone.yml')
-            print(type(__file))
 
-            log("info", "Updating already existing CI Configuration.")
+            log("debug", "Updating already existing CI Configuration.")
 
             config = []
             with open(__file, 'r') as stream:
@@ -322,12 +315,12 @@ def ensureConfig(
 
             with open(__file, 'w') as stream:
 
-                config['steps'][0]['commands'] = modifyConfigFiles(
+                config['steps'][1]['commands'] = modifyConfigFiles(
                     workflow=workflow,
                     annexFiles=annexFiles,
                     backPushFiles=backPushFiles,
-                    commands=commands,
-                    data=config['steps'][0]['commands'][:9]
+                    commands=userInputs,
+                    data=config['steps'][1]['commands'][:9]
                 )
 
                 config['steps'] = addNotifications(

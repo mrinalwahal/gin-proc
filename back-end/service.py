@@ -3,19 +3,16 @@
 # export GIN_SERVER=http://172.19.0.2:3000
 # export DRONE_SERVER=http://172.19.0.3
 # DRONE_TOKEN=AAAAAAAAAA000000000000000XXXXXXXXX
-# GIT_SSH_COMMAND=ssh -i gin-proc/ssh/gin_id_rsa
 # -------------------------------#
 
 
 import requests
 import os
 from shutil import rmtree
-from datetime import datetime
 import tempfile
-import logging
 
 from config import ensureConfig
-
+from logger import log
 from subprocess import call
 
 from cryptography.hazmat.primitives import serialization
@@ -28,34 +25,6 @@ DRONE_ADDR = os.environ['DRONE_SERVER']
 PRIV_KEY = 'gin_id_rsa'
 PUB_KEY = '{}.pub'.format(PRIV_KEY)
 SSH_PATH = os.path.join(os.environ['HOME'], 'gin-proc', 'ssh')
-
-if 'LOG_DIR' in os.environ:
-    logging.basicConfig(
-        filename=os.environ['LOG_DIR'],
-        format="%(asctime)s:%(levelname)s:%(message)s",
-        level=logging.DEBUG
-        )
-
-
-def log(function, message):
-
-    if 'LOG_DIR' in os.environ:
-        if function == 'warning':
-            logging.warning(message)
-        elif function == 'error':
-            logging.error(message)
-        elif function == 'critical':
-            logging.critical(message)
-        elif function == 'info':
-            logging.info(message)
-        elif function == 'exception':
-            logging.exception(message)
-    else:
-        print("{1}: [{0}] {2}".format(
-            function.upper(),
-            datetime.now(),
-            message)
-            )
 
 
 def userData(token):
@@ -101,11 +70,11 @@ def writeSecret(key, repo, user):
     )
 
     if res.status_code == 200:
-        log('info', 'Secret installation complete.')
+        log('debug', 'Secret installed in `{}`'.format(repo))
         return True
     else:
-        log('info', 'Key could not be installed as secret.')
-        log('error', res.json()['message'])
+        log('warning', 'Secret could not be installed in `{}`'.format(repo))
+        log('critical', res.json()['message'])
         return False
 
 
@@ -123,15 +92,15 @@ def updateSecret(secret, data, user, repo):
         })
 
     if res.status_code == 200:
-        log('info', 'Secret updated.')
+        log('debug', 'Secret updated in `{}`'.format(repo))
         return True
     else:
-        log('error', 'Secret could not be updated.')
+        log('warning', 'Secret could not be updated in `{}`'.format(repo))
         log('critical', 'Execution may not work properly from here.')
         return False
 
 
-def ensureSecret(user, repo):
+def ensureSecrets(user):
 
     repos = requests.get(
         DRONE_ADDR + "/api/user/repos",
@@ -139,46 +108,33 @@ def ensureSecret(user, repo):
             'Authorization': 'Bearer {}'.format(os.environ['DRONE_TOKEN'])
             }).json()
 
-    if repo not in [x['name'] for x in repos if x['active']]:
-        
-        log('error', 'Repo {} is not activated in Drone.'.format(repo))
+    for repo in repos:
+        if repo['active']:
 
-        install_request = requests.post(
-            DRONE_ADDR + "/api/repos/{owner}/{name}".format(
-                owner=user, name=repo),
-            headers={
-                'Authorization': 'Bearer {}'.format(os.environ['DRONE_TOKEN'])
-                })
+            secrets = requests.get(
+                DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(user, repo['name']),
+                headers={'Authorization': 'Bearer {}'.format(
+                    os.environ['DRONE_TOKEN'])}
+                ).json()
 
-        if install_request.status_code == 200:
-            log('info', "Nevermind. I've activated it for you.")
-        else:
-            log('critical', "Drone didn't respond to me. This is a crisis!")
-            return False
+            with open(os.path.join(SSH_PATH, PRIV_KEY), 'r') as key:
 
-    secrets = requests.get(
-        DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(user, repo),
-        headers={'Authorization': 'Bearer ' + os.environ['DRONE_TOKEN']}
-        ).json()
+                for secret in secrets:
+                    if secret['name'] == 'DRONE_PRIVATE_SSH_KEY':
+                        log('debug', 'Secret found in repo `{}`'.format(
+                            repo['name']))
 
-    with open(os.path.join(SSH_PATH, PRIV_KEY), 'r') as key:
+                        return updateSecret(
+                            secret=secret['name'],
+                            data=key.read(),
+                            repo=repo['name'],
+                            user=user
+                        )
+                    else:
+                        return(writeSecret(key.read(), repo['name'], user))
 
-        for secret in secrets:
-            if secret['name'] == 'DRONE_PRIVATE_SSH_KEY':
-                log('info', 'Secret found in activated repo: {}'.format(repo))
-
-                return updateSecret(
-                    secret=secret['name'],
-                    data=key.read(),
-                    repo=repo,
-                    user=user
-                )
-            else:
-                log('error', "Secret doesn't match. Starting update job.")
-                return(writeSecret(key.read(), repo, user))
-
-        log('error', 'Secret not found.')
-        return(writeSecret(key.read(), repo, user))
+                log('debug', 'Secret not found in `{}`'.format(repo['name']))
+                return(writeSecret(key.read(), repo['name'], user))
 
 
 def getKeysFromServer(token):
@@ -211,6 +167,8 @@ def deleteKeysOnServer(token):
                 log('error', response.text)
                 log('critical',
                     "You'll have to manually delete the keys from the server.")
+
+    return
 
 
 def ensureKeysOnLocal(path):
@@ -267,17 +225,16 @@ def ensureKeys(token):
 
     try:
         if ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
-            log("info", "Keys ensured both on server and locally.")
+            log("debug", "Keys ensured both on server and locally.")
 
         elif ensureKeysOnServer(token) and not ensureKeysOnLocal(SSH_PATH):
-            log("info", "Key is installed on the server but not locally.")
+            log("debug", "Key is installed on the server but not locally.")
 
             deleteKeysOnServer(token)
             installFreshKeys(SSH_PATH, token)
 
         elif not ensureKeysOnServer(token) and ensureKeysOnLocal(SSH_PATH):
-            log("error", "Key is installed locally but not on the server.")
-            log("warning", "Deleting key from local.")
+            log("debug", "Key is installed locally but not on the server.")
 
             os.remove(os.path.join(SSH_PATH, PRIV_KEY))
             os.remove(os.path.join(SSH_PATH, PUB_KEY))
@@ -299,7 +256,7 @@ def getRepos(user, token):
 
     return requests.get(
         GIN_ADDR + "/api/v1/users/{}/repos".format(user),
-        headers={'Authorization': 'token ' + token},
+        headers={'Authorization': 'token {}'.format(token)},
         ).json()
 
 
@@ -317,7 +274,7 @@ def clone(repo, author, path):
 
     call(['git', 'clone', '--depth=1', repo['clone_url'], clone_path])
 
-    log("info", "Repo cloned at " + clone_path)
+    log("debug", "Repo cloned at {}".format(clone_path))
     return clone_path
 
 
@@ -340,7 +297,7 @@ def clean(path):
 
     try:
         rmtree(path)
-        log("info", "Repo cleaned from {}".format(path))
+        log("debug", "Repo cleaned from {}".format(path))
         return True
 
     except Exception as e:
@@ -362,34 +319,22 @@ def configure(
 
     repo = getRepoData(username, repoName, token)
 
-    os.environ['GIT_SSH_COMMAND'] = "ssh -i " + \
-        os.path.join(SSH_PATH, PRIV_KEY)
-
-    if not ensureSecret(username, repoName):
-        log('critical', "Couldn't ensure secret in Drone. Exiting.")
-        return False
-
-    STATUS = False
+    os.environ['GIT_SSH_COMMAND'] = "ssh -i {}".format(
+       os.path.join(SSH_PATH, PRIV_KEY))
 
     with tempfile.TemporaryDirectory() as temp_clone_path:
         clone_path = clone(repo, username, temp_clone_path)
 
-        try:
-            if ensureConfig(
-                config_path=clone_path,
-                workflow=workflow,
-                commands=userInputs,
-                annexFiles=annexFiles,
-                backPushFiles=backPushFiles,
-                notifications=notifications
-            ):
-                STATUS = True
+        status = ensureConfig(
+            config_path=clone_path,
+            workflow=workflow,
+            userInputs=userInputs,
+            annexFiles=annexFiles,
+            backPushFiles=backPushFiles,
+            notifications=notifications
+        )
 
-        except Exception as e:
-            log('exception', e)
+        push(clone_path, commitMessage)
+        clean(clone_path)
 
-        finally:
-            push(clone_path, commitMessage)
-            clean(clone_path)
-
-    return STATUS
+    return status
