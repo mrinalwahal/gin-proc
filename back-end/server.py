@@ -1,4 +1,3 @@
-import os
 from service import configure, ensureToken, ensureKeys, getRepos, userData
 from service import log, ensureSecrets
 from flask import Flask, request, abort, jsonify
