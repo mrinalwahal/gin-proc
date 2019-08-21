@@ -322,24 +322,19 @@ def configure(
     os.environ['GIT_SSH_COMMAND'] = "ssh -i {}".format(
        os.path.join(SSH_PATH, PRIV_KEY))
 
-    STATUS = False
-
     with tempfile.TemporaryDirectory() as temp_clone_path:
         clone_path = clone(repo, username, temp_clone_path)
 
-        if ensureConfig(
+        status = ensureConfig(
             config_path=clone_path,
             workflow=workflow,
             userInputs=userInputs,
             annexFiles=annexFiles,
             backPushFiles=backPushFiles,
             notifications=notifications
-        ):
-            STATUS = True
-        else:
-            STATUS = False
+        )
 
         push(clone_path, commitMessage)
         clean(clone_path)
 
-    return STATUS
+    return status

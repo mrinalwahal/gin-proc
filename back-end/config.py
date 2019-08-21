@@ -61,7 +61,8 @@ def addBackPush(files, commands):
         commands.append('mv {} "$DRONE_BUILD_NUMBER"/'.format(
             input_files))
 
-        commands.append('git add "$DRONE_BUILD_NUMBER"/')
+        commands.append('git annex add -c annex.largefiles="largerthan=10M" \
+            "$DRONE_BUILD_NUMBER"/')
         commands.append('git commit "$DRONE_BUILD_NUMBER"/ -m "Back-Push"')
         commands.append('git push origin gin-proc')
         commands.append('git annex copy --to=origin --all')
@@ -166,11 +167,14 @@ def generateConfig(
                         'echo "StrictHostKeyChecking no" >> \
 /etc/ssh/ssh_config',
                         'ssh-add /root/.ssh/id_rsa',
+                        'git config --global user.name "gin-proc"',
+                        'git config --global user.email "gin-proc@local"',
                         'ssh-keyscan -t rsa "$DRONE_GOGS_SERVER" > \
 /root/.ssh/authorized_keys',
-                        'git clone "$DRONE_GIT_SSH_URL"',
-                        'cd "$DRONE_REPO_NAME"/',
-                        'pip3 install -r requirements.txt',
+                        'if [ -d "$DRONE_REPO_NAME" ]; then cd "$DRONE_REPO_NAME"/ \
+&& git fetch --all && git checkout "$DRONE_COMMIT"; \
+else git clone "$DRONE_GIT_SSH_URL" \
+&& cd "$DRONE_REPO_NAME"/ && pip3 install -r requirements.txt; fi',
                     ]
                 ),
                 createStep(

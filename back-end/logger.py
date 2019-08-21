@@ -51,15 +51,10 @@ def log(function, message):
             logging.exception(message)
     else:
 
-        if function == "debug":
-            if 'DEBUG' in os.environ and os.environ['DEBUG']:
+        if function != "debug" or (
+            'DEBUG' in os.environ and os.environ['DEBUG']
+            ):
 
-                print("{1}: [{0}] {2}".format(
-                    function.upper(),
-                    datetime.now(),
-                    message)
-                    )
-        else:
             print("{1}: [{0}] {2}".format(
                 function.upper(),
                 datetime.now(),
