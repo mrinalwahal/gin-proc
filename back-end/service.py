@@ -9,7 +9,6 @@
 import requests
 import os
 from shutil import rmtree
-from datetime import datetime
 import tempfile
 
 from config import ensureConfig
@@ -328,22 +327,19 @@ def configure(
     with tempfile.TemporaryDirectory() as temp_clone_path:
         clone_path = clone(repo, username, temp_clone_path)
 
-        try:
-            if ensureConfig(
-                config_path=clone_path,
-                workflow=workflow,
-                userInputs=userInputs,
-                annexFiles=annexFiles,
-                backPushFiles=backPushFiles,
-                notifications=notifications
-            ):
-                STATUS = True
+        if ensureConfig(
+            config_path=clone_path,
+            workflow=workflow,
+            userInputs=userInputs,
+            annexFiles=annexFiles,
+            backPushFiles=backPushFiles,
+            notifications=notifications
+        ):
+            STATUS = True
+        else:
+            STATUS = False
 
-        except Exception as e:
-            log('exception', e)
-
-        finally:
-            push(clone_path, commitMessage)
-            clean(clone_path)
+        push(clone_path, commitMessage)
+        clean(clone_path)
 
     return STATUS

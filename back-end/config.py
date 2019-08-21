@@ -1,8 +1,6 @@
 import os
 import yaml
 from logger import log
-import traceback
-from datetime import datetime
 
 
 def createVolume(name, path):
@@ -239,7 +237,7 @@ def modifyConfigFiles(
 
     except Exception as e:
         log('exception', e)
-        
+
 
 def addNotifications(notifications, data):
 

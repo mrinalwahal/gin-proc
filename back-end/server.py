@@ -1,7 +1,7 @@
-import os
 from service import configure, ensureToken, ensureKeys, getRepos, userData
 from service import log, ensureSecrets
-from flask import Flask, request, abort, render_template, jsonify, make_response
+from flask import Flask, request, abort, jsonify
+
 from flask_cors import CORS, cross_origin
 app = Flask(__name__)
 cors = CORS(app)
