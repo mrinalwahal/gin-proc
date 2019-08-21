@@ -7,9 +7,9 @@ from datetime import datetime
 def level():
 
     if 'DEBUG' in os.environ and os.environ['DEBUG']:
-            return logging.DEBUG
+        return logging.DEBUG
     else:
-            return logging.INFO
+        return logging.INFO
 
 
 FORMAT = "%(asctime)s:%(levelname)s:%(message)s"
