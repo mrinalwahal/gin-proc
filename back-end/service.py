@@ -64,6 +64,8 @@ def log(function, message):
     if LOG:
         if function == 'warning':
             logging.warning(message)
+        elif function == 'debug':
+            logging.debug(message)
         elif function == 'error':
             logging.error(message)
         elif function == 'critical':
@@ -73,11 +75,21 @@ def log(function, message):
         elif function == 'exception':
             logging.exception(message)
     else:
-        print("{1}: [{0}] {2}".format(
-            function.upper(),
-            datetime.now(),
-            message)
-            )
+
+        if function == "debug":
+            if 'DEBUG' in os.environ and os.environ['DEBUG']:
+
+                print("{1}: [{0}] {2}".format(
+                    function.upper(),
+                    datetime.now(),
+                    message)
+                    )
+        else:
+            print("{1}: [{0}] {2}".format(
+                function.upper(),
+                datetime.now(),
+                message)
+                )
 
 
 def userData(token):
