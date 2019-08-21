@@ -110,8 +110,16 @@ Access drone at `172.19.0.3:80` in your browser.
 **[6]** Create **gin-proc** service.
 
 ```
-docker run --env=DEBUG=True --env=LOG_DIR=/path/to/your/log/folder --net gin --name=gin-proc gnode/proc:<version>
+docker run --net gin --name=gin-proc gnode/proc:<version>
 ```
+
+**Additional Environment Variables**
+
+`DEBUG=True` - Serves log messages from the lowest DEBUG level i.e. DEBUG, INFO, WARNING, ERROR, EXCEPTION.
+
+`DEBUG=False` or simply, not assigning the var - Servers log messages from and above INFO level i.e. INFO, WARNING, ERROR, EXCEPTION.
+
+`LOG_DIR=/path/to/your/log/dir` - Specific location to store your logs in. Otherwise, the logs are simply printed on your console in real time.
 
 <br>
 

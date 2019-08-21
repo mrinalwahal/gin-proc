@@ -3,7 +3,6 @@
 # export GIN_SERVER=http://172.19.0.2:3000
 # export DRONE_SERVER=http://172.19.0.3
 # DRONE_TOKEN=AAAAAAAAAA000000000000000XXXXXXXXX
-# GIT_SSH_COMMAND=ssh -i gin-proc/ssh/gin_id_rsa
 # -------------------------------#
 
 
@@ -29,25 +28,35 @@ PRIV_KEY = 'gin_id_rsa'
 PUB_KEY = '{}.pub'.format(PRIV_KEY)
 SSH_PATH = os.path.join(os.environ['HOME'], 'gin-proc', 'ssh')
 
+
+def level():
+
+    if 'DEBUG' in os.environ and os.environ['DEBUG']:
+            return logging.DEBUG
+    else:
+            return logging.INFO
+
+
+FORMAT = "%(asctime)s:%(levelname)s:%(message)s"
+
 if 'LOG_DIR' in os.environ:
 
     LOG = True
     FILENAME = os.environ['LOG_DIR']
-    FORMAT = "%(asctime)s:%(levelname)s:%(message)s"
-
-    if 'DEBUG' in os.environ and os.environ['DEBUG']:
-        LEVEL = logging.DEBUG
-    else:
-        LEVEL = logging.INFO
 
     logging.basicConfig(
         filename=FILENAME,
         format=FORMAT,
-        level=LEVEL
+        level=level()
         )
 
 else:
     LOG = False
+
+    logging.basicConfig(
+        format=FORMAT,
+        level=level()
+        )
 
 
 def log(function, message):
@@ -173,7 +182,7 @@ def ensureSecrets(user):
                         repo))
 
         secrets = requests.get(
-            DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(user, repo),
+            DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(user, repo['name']),
             headers={'Authorization': 'Bearer {}'.format(
                 os.environ['DRONE_TOKEN'])}
             ).json()
@@ -183,19 +192,19 @@ def ensureSecrets(user):
             for secret in secrets:
                 if secret['name'] == 'DRONE_PRIVATE_SSH_KEY':
                     log('debug', 'Secret found in repo `{}`'.format(
-                        repo))
+                        repo['name']))
 
                     return updateSecret(
                         secret=secret['name'],
                         data=key.read(),
-                        repo=repo,
+                        repo=repo['name'],
                         user=user
                     )
                 else:
-                    return(writeSecret(key.read(), repo, user))
+                    return(writeSecret(key.read(), repo['name'], user))
 
-            log('debug', 'Secret not found in `{}`'.format(repo))
-            return(writeSecret(key.read(), repo, user))
+            log('debug', 'Secret not found in `{}`'.format(repo['name']))
+            return(writeSecret(key.read(), repo['name'], user))
 
 
 def getKeysFromServer(token):
@@ -335,7 +344,7 @@ def clone(repo, author, path):
 
     call(['git', 'clone', '--depth=1', repo['clone_url'], clone_path])
 
-    log("debug", "Repo cloned at " + clone_path)
+    log("debug", "Repo cloned at {}".format(clone_path))
     return clone_path
 
 

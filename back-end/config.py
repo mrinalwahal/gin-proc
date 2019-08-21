@@ -3,26 +3,36 @@ import yaml
 import logging
 
 from datetime import datetime
+    
+
+def level():
+
+    if 'DEBUG' in os.environ and os.environ['DEBUG']:
+            return logging.DEBUG
+    else:
+            return logging.INFO
+
+
+FORMAT = "%(asctime)s:%(levelname)s:%(message)s"
 
 if 'LOG_DIR' in os.environ:
 
     LOG = True
     FILENAME = os.environ['LOG_DIR']
-    FORMAT = "%(asctime)s:%(levelname)s:%(message)s"
-
-    if 'DEBUG' in os.environ and os.environ['DEBUG']:
-        LEVEL = logging.DEBUG
-    else:
-        LEVEL = logging.INFO
 
     logging.basicConfig(
         filename=FILENAME,
         format=FORMAT,
-        level=LEVEL
+        level=level()
         )
 
 else:
     LOG = False
+
+    logging.basicConfig(
+        format=FORMAT,
+        level=level()
+        )
 
 
 def log(function, message):
@@ -316,6 +326,8 @@ def ensureConfig(
         ):
 
     try:
+
+        
         __file = os.path.join(config_path, '.drone.yml')
         if not os.path.exists(__file) or os.path.getsize(__file) <= 0:
             log("warning", "CI Config either not found in repo or is corrupt.")
