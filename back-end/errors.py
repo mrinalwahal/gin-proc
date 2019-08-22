@@ -1,3 +1,11 @@
+# ------------------------------------------------------------------#
+# Service: gin-proc
+# Project: GIN - https://gin.g-node.org
+# Documentation: https://github.com/G-Node/gin-proc/blob/master/docs
+# Package: Errors and Exceptions
+# ------------------------------------------------------------------#
+
+
 class ServiceError(Exception):
 
     def __init__(self, message, payload=None):

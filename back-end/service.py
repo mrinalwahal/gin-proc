@@ -1,9 +1,14 @@
-# -------------------------------#
+# ------------------------------------------------------------------#
+# Service: gin-proc
+# Project: GIN - https://gin.g-node.org
+# Documentation: https://github.com/G-Node/gin-proc/blob/master/docs
+# Package: Service
+# ------------------------------------------------------------------#
 # Env variables assigned
 # export GIN_SERVER=http://172.19.0.2:3000
 # export DRONE_SERVER=http://172.19.0.3
 # DRONE_TOKEN=AAAAAAAAAA000000000000000XXXXXXXXX
-# -------------------------------#
+# ------------------------------------------------------------------#
 
 
 import requests
@@ -400,7 +405,7 @@ def configure(
     """
     First line of action!
 
-    This function is reposible for integrating the entire workflow 
+    This function is reposible for integrating the entire workflow
     together and executing the following in chronological order:
 
         1. Fetches the repository data for repo in question.
@@ -420,7 +425,7 @@ def configure(
         5. Commits and pushes any updates in the cloned repository
         after workflow configuration is complete and successfull.
 
-        6. Deletes the cloned repository data and deletes temporary location. 
+        6. Deletes the cloned repository data and deletes temporary location.
     """
 
     try:

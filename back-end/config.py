@@ -1,3 +1,11 @@
+# ------------------------------------------------------------------#
+# Service: gin-proc
+# Project: GIN - https://gin.g-node.org
+# Documentation: https://github.com/G-Node/gin-proc/blob/master/docs
+# Package: Config
+# ------------------------------------------------------------------#
+
+
 import os
 import yaml
 from logger import log
@@ -372,7 +380,7 @@ def ensureConfig(
         configuration with a yet fresh one -- this will delete user's
         manual changes to configuration.
 
-    Complete documentation for all operations in this function 
+    Complete documentation for all operations in this function
     can also be accessed at:
 
     https://github.com/G-Node/gin-proc/blob/master/docs/operations.md
