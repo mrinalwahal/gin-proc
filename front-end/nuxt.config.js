@@ -46,7 +46,11 @@ export default {
    ** See https://axios.nuxtjs.org/options
    */
   axios: {
+<<<<<<< HEAD
     baseURL: 'http://localhost:8000/auth'
+=======
+    baseURL: 'http://localhost:8000'
+>>>>>>> 46fa67413a76faef0722c635a6736ff918733d58
   },
   auth: {
     strategies: {
