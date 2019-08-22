@@ -4,7 +4,7 @@
 <a name="after-login"></a>
 #### What happens just after you Log-In
 
-To read API operations after `login`, click [here](asdassdasd)
+To read API operations after `login`, please visit: `<YOUR_GIN-PROC_SERVER_ADDRESS>:8000/docs/api`
 
 <br>
 
@@ -13,7 +13,7 @@ To read API operations after `login`, click [here](asdassdasd)
 
 Your input data from the front-end is sent to the REST API running on port `8000` on the same address. And the API takes over the job from there.
 
-[Read](asdads) API Documentation for more info.
+Read API Documentation for more info at: `<YOUR_GIN-PROC_SERVER_ADDRESS>:8000/docs/api`
 
 <br>
 
