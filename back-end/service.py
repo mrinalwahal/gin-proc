@@ -104,9 +104,8 @@ def writeSecret(key, repo, user):
         log('debug', 'Secret installed in `{}`'.format(repo))
         return True
     else:
-        raise ServerError('Secret could not be installed in `{}`'.format(repo), 410)
         log('critical', res.json()['message'])
-        return False
+        raise ServerError('Secret could not be installed in `{}`'.format(repo), 410)
 
 
 def updateSecret(secret, data, user, repo):
@@ -134,7 +133,6 @@ def updateSecret(secret, data, user, repo):
     else:
         raise ServerError('Secret could not be updated in `{}`'.format(repo), 412)
         log('critical', 'Execution may not work properly from here.')
-        return False
 
 
 def ensureSecrets(user):
@@ -224,7 +222,6 @@ def deleteKeysOnServer(token):
                 raise ServerError(
                     "You'll have to manually delete the keys from the server.",
                     401)
-                return False
 
 
 def ensureKeysOnLocal(path):
@@ -324,7 +321,8 @@ def ensureKeys(token):
         installFreshKeys(SSH_PATH, token)
 
     except:
-        ServerError('Failed to ensure keys.', 502)
+        log('critical', 'Failed to ensure keys.')
+        raise ServerError('Cannot ensure keys.', 205)
 
 
 def getRepos(user, token):
