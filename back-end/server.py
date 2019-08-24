@@ -10,6 +10,7 @@
 from service import configure, ensureToken, ensureKeys, getRepos, userData
 from service import log, ensureSecrets
 from flask import Flask, request, abort, jsonify, Blueprint
+from http import HTTPStatus
 
 import errors
 
@@ -44,25 +45,25 @@ class User(object):
             log("debug", 'GIN token ensured.')
 
         except errors.ServerError as e:
-            log('error', e)
-            return (e, 500)
+            log('critical', e)
+            return (e, HTTPStatus(500))
 
         if (
             ensureKeys(self.GIN_TOKEN) and ensureSecrets(self.username)
                 ):
-            return ({'token': self.GIN_TOKEN}, 200)
+            return ({'token': self.GIN_TOKEN}, HTTPStatus(200))
         else:
-            return ('login failed', 400)
+            return ('login failed', HTTPStatus(401))
 
     def logout(self):
         user.username = None
         user.GIN_TOKEN = None
         user.DRONE_TOKEN = None
 
-        return ("logged out", 200)
+        return ("logged out", HTTPStatus(200))
 
     def details(self):
-        return (userData(self.GIN_TOKEN), 200)
+        return (userData(self.GIN_TOKEN), HTTPStatus(200))
 
     def run(self, request):
 
@@ -82,10 +83,10 @@ class User(object):
                 username=self.username
             )
             return ("Success: workflow pushed to {}".format(
-                            request.json['repo']), 200)
+                            request.json['repo']), HTTPStatus(200))
 
         except errors.ServiceError as e:
-            return (e, 400)
+            return (e, HTTPStatus(417))
 
     def repos(self):
 
@@ -146,9 +147,10 @@ def login():
     """
 
     if request.method == "POST":
-        return user.login()
-    else:
-        abort(500)
+        try:
+            return user.login()
+        except errors.ServerError as e:
+            abort(e.status)
 
 
 @auth.route('/user', methods=['GET'])
@@ -159,9 +161,11 @@ def Get_User():
     """
 
     if request.method == "GET":
-        return user.details()
-    else:
-        abort(500)
+        try:
+            return user.details()
+        except errors.ServerError as e:
+            abort(e.status)
+        
 
 
 @api.route('/execute', methods=['POST'])
@@ -178,9 +182,11 @@ def Execute_Workflow():
     """
 
     if request.method == "POST":
-        return user.run(request)
-    else:
-        abort(500)
+        
+        try:
+            return user.run(request)
+        except errors.ServerError as e:
+            abort(e.status)
 
 
 @api.route('/repos', methods=['GET'])

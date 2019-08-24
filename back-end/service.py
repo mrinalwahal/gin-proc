@@ -16,6 +16,7 @@ import os
 from shutil import rmtree
 import tempfile
 
+from http import HTTPStatus
 from config import ensureConfig
 from logger import log
 from subprocess import call
@@ -105,7 +106,8 @@ def writeSecret(key, repo, user):
         return True
     else:
         log('critical', res.json()['message'])
-        raise ServerError('Secret could not be installed in `{}`'.format(repo), 410)
+        raise ServerError('Secret could not be installed in `{}`'.format(repo),
+            HTTPStatus(417))
 
 
 def updateSecret(secret, data, user, repo):
@@ -131,8 +133,8 @@ def updateSecret(secret, data, user, repo):
         log('debug', 'Secret updated in `{}`'.format(repo))
         return True
     else:
-        raise ServerError('Secret could not be updated in `{}`'.format(repo), 412)
-        log('critical', 'Execution may not work properly from here.')
+        raise ServerError('Secret could not be updated in `{}`'.format(repo),
+            HTTPStatus(417))
 
 
 def ensureSecrets(user):
@@ -154,7 +156,8 @@ def ensureSecrets(user):
     for repo in [repo for repo in repos if repo['active']]:
 
         secrets = requests.get(
-            DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(user, repo['name']),
+            DRONE_ADDR + "/api/repos/{0}/{1}/secrets".format(
+                user, repo['name']),
             headers={'Authorization': 'Bearer {}'.format(
                 os.environ['DRONE_TOKEN'])}
             ).json()
@@ -172,9 +175,9 @@ def ensureSecrets(user):
                         repo=repo['name'],
                         user=user
                     )
-                else:
-                    log('debug', 'Secret not found in `{}`'.format(repo['name']))
-                    return(writeSecret(key.read(), repo['name'], user))
+
+            log('debug', 'Secret not found in `{}`'.format(repo['name']))
+            return(writeSecret(key.read(), repo['name'], user))
 
 
 def getKeysFromServer(token):
@@ -221,7 +224,7 @@ def deleteKeysOnServer(token):
                 log('error', response.text)
                 raise ServerError(
                     "You'll have to manually delete the keys from the server.",
-                    401)
+                    HTTPStatus(419))
 
 
 def ensureKeysOnLocal(path):
@@ -322,7 +325,7 @@ def ensureKeys(token):
 
     except:
         log('critical', 'Failed to ensure keys.')
-        raise ServerError('Cannot ensure keys.', 205)
+        raise ServerError('Cannot ensure keys.', HTTPStatus(501))
 
 
 def getRepos(user, token):
