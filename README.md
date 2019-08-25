@@ -4,7 +4,7 @@
 
 [![G-Node](./images/favicon.png)](https://gin.g-node.org)
 
-This repository contains documentation for using the **gin-proc** microservice for **[GIN](https://gin.g-node.org)** s as well as its setup and support scripts.
+This repository contains documentation for using the **gin-proc** microservice for **[GIN](https://gin.g-node.org)** with INCF **as a part of Google Summer of Code (GSoC) 2019 programme**, as well as its setup and support scripts.
 
 <br>
 
@@ -78,7 +78,7 @@ This microservice is licensed under the BSD 3-Clause license. All rights not exp
 
 *Supported with :heart: by [Achilleas Koutsou](https://github.com/achilleas-k), [Michael Sonntag](https://github.com/mpsonntag) and the [G-Node](https://github.com/orgs/G-Node/people) team.*
 
-*This project is affiliated with [G-Node](http://www.g-node.org/) and [GIN](https://gin.g-node.org).*
+*This project was completed as part of *Google Summer of Code (GSoC) 2019.* and is affiliated with [G-Node](http://www.g-node.org/) and [GIN](https://gin.g-node.org).*
 
 <br>
 
