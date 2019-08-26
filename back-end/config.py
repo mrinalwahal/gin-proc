@@ -84,7 +84,7 @@ def createStep(
     return PAYLOAD
 
 
-def join_files(files, location=''):
+def joindronefiles(files, location=''):
 
     """
     Join filenames from user's entered list in a single string
@@ -104,19 +104,19 @@ def addBackPush(files, commands):
     """
 
     if len(files) > 0:
-        input_files = join_files(files)
+        inputdronefiles = joindronefiles(files)
 
         commands.append('TMPLOC=`mktemp -d`')
-        commands.append(('mv {} "$TMPLOC"').format(input_files))
+        commands.append(('mv {} "$TMPLOC"').format(inputdronefiles))
 
         commands.append('git checkout gin-proc || git checkout -b gin-proc')
         commands.append('git reset --hard')
         commands.append('mkdir "$DRONE_BUILD_NUMBER"')
 
-        input_files = join_files(files, "$TMPLOC")
+        inputdronefiles = joindronefiles(files, "$TMPLOC")
 
         commands.append('mv {} "$DRONE_BUILD_NUMBER"/'.format(
-            input_files))
+            inputdronefiles))
 
         commands.append('git annex add -c annex.largefiles="largerthan=10M" \
 "$DRONE_BUILD_NUMBER"/')
@@ -135,10 +135,10 @@ def addAnnex(files, commands):
 
     try:
         if len(files) > 0:
-            input_files = join_files(files)
+            inputdronefiles = joindronefiles(files)
 
             commands.append('git annex init "$DRONE_REPO_NAME"-drone-annexe')
-            commands.append("git annex get {}".format(input_files))
+            commands.append("git annex get {}".format(inputdronefiles))
 
     except Exception as e:
         log('exception', e)
@@ -387,11 +387,11 @@ def ensureConfig(
 
     """
 
-    __file = os.path.join(config_path, '.drone.yml')
+    dronefile = os.path.join(config_path, '.drone.yml')
     execution_step = None
 
     try:
-        if not os.path.exists(__file) or os.path.getsize(__file) <= 0:
+        if not os.path.exists(dronefile) or os.path.getsize(dronefile) <= 0:
             raise ConfigurationError("CI Config either not found in repo or is corrupt.")
 
         else:
@@ -399,7 +399,7 @@ def ensureConfig(
             log("debug", "Updating already existing CI Configuration.")
 
             config = []
-            with open(__file, 'r') as stream:
+            with open(dronefile, 'r') as stream:
                 config = yaml.load(stream, Loader=yaml.FullLoader)
 
                 execution_step = [
@@ -414,7 +414,7 @@ def ensureConfig(
                         "Existing CI Config does not match correct \
 preparation mechanism for pipeline.")
 
-            with open(__file, 'w') as stream:
+            with open(dronefile, 'w') as stream:
 
                 config['steps'][config['steps'].index(
                     execution_step)]['commands'] = modifyConfigFiles(
@@ -443,7 +443,7 @@ preparation mechanism for pipeline.")
 
         with open(os.path.join(config_path, '.drone.yml'), 'w') \
             as new_config:
-            __generated_config = generateConfig(
+            generated_config = generateConfig(
                     workflow=workflow,
                     commands=userInputs,
                     annexFiles=annexFiles,
@@ -451,10 +451,10 @@ preparation mechanism for pipeline.")
                     notifications=notifications
                     )
 
-            if not __generated_config:
+            if not generated_config:
                 return False
             else:
                 yaml.dump(
-                    __generated_config,
+                    generated_config,
                     new_config,
                     default_flow_style=False)

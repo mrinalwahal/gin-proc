@@ -86,7 +86,7 @@ class User(object):
                             request.json['repo']), HTTPStatus(200))
 
         except errors.ServiceError as e:
-            return (e, HTTPStatus(417))
+            return (e, HTTPStatus(500))
 
     def repos(self):
 
