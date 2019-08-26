@@ -101,13 +101,13 @@ def writeSecret(key, repo, user):
     except Exception.ConnectionError as e:
         raise ServerError(e)
 
-    if res.status_code == 200:
+    if res.status_code == HTTPStatus.OK:
         log('debug', 'Secret installed in `{}`'.format(repo))
         return True
     else:
         log('critical', res.json()['message'])
         raise ServerError('Secret could not be installed in `{}`'.format(repo),
-            HTTPStatus(500))
+            HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
 def updateSecret(secret, data, user, repo):
@@ -129,12 +129,12 @@ def updateSecret(secret, data, user, repo):
             "pull_request": False
         })
 
-    if res.status_code == 200:
+    if res.status_code == HTTPStatus.OK:
         log('debug', 'Secret updated in `{}`'.format(repo))
         return True
     else:
         raise ServerError('Secret could not be updated in `{}`'.format(repo),
-            HTTPStatus(500))
+            HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
 def ensureSecrets(user):
@@ -175,7 +175,7 @@ def ensureSecrets(user):
                         repo=repo['name'],
                         user=user
                     )
-                break
+                    break
 
             log('debug', 'Secret not found in `{}`'.format(repo['name']))
             writeSecret(key.read(), repo['name'], user)
@@ -227,7 +227,7 @@ def deleteKeysOnServer(token):
                 log('error', response.text)
                 raise ServerError(
                     "You'll have to manually delete the keys from the server.",
-                    HTTPStatus(401))
+                    HTTPStatus.SERVICE_UNAVAILABLE)
 
 
 def ensureKeysOnLocal(path):
@@ -328,7 +328,7 @@ def ensureKeys(token):
 
     except:
         log('critical', 'Failed to ensure keys.')
-        raise ServerError('Cannot ensure keys.', HTTPStatus(500))
+        raise ServerError('Cannot ensure keys.', HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
 def getRepos(user, token):

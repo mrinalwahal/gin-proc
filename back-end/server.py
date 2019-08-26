@@ -46,24 +46,24 @@ class User(object):
 
         except errors.ServerError as e:
             log('critical', e)
-            return (e, HTTPStatus(500))
+            return (e, HTTPStatus.INTERNAL_SERVER_ERROR)
 
         if (
             ensureKeys(self.GIN_TOKEN) and ensureSecrets(self.username)
                 ):
-            return ({'token': self.GIN_TOKEN}, HTTPStatus(200))
+            return ({'token': self.GIN_TOKEN}, HTTPStatus.OK)
         else:
-            return ('login failed', HTTPStatus(401))
+            return ('login failed', HTTPStatus.UNAUTHORIZED)
 
     def logout(self):
         user.username = None
         user.GIN_TOKEN = None
         user.DRONE_TOKEN = None
 
-        return ("logged out", HTTPStatus(200))
+        return ("logged out", HTTPStatus.OK)
 
     def details(self):
-        return (userData(self.GIN_TOKEN), HTTPStatus(200))
+        return (userData(self.GIN_TOKEN), HTTPStatus.OK)
 
     def run(self, request):
 
@@ -83,10 +83,10 @@ class User(object):
                 username=self.username
             )
             return ("Success: workflow pushed to {}".format(
-                            request.json['repo']), HTTPStatus(200))
+                            request.json['repo']), HTTPStatus.OK)
 
         except errors.ServiceError as e:
-            return (e, HTTPStatus(500))
+            return (e, HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def repos(self):
 
