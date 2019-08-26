@@ -175,6 +175,7 @@ def ensureSecrets(user):
                         repo=repo['name'],
                         user=user
                     )
+                break
 
             log('debug', 'Secret not found in `{}`'.format(repo['name']))
             writeSecret(key.read(), repo['name'], user)
